@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>重大事件表（橫式）</title>
+<style>
+:root{--bg:#f8f7f4;--sf:#fff;--sf2:#f2f1ee;--bd:rgba(0,0,0,.1);--bds:rgba(0,0,0,.18);--tx:#1a1a18;--tx2:#52514e;--tx3:#898781;--ac:#2a78d6;--acbg:#e8f1fb;--dg:#e24b4a;--dgbg:#fdeaea;--rd:8px}
+@media(prefers-color-scheme:dark){:root{--bg:#1a1a18;--sf:#242422;--sf2:#2c2c2a;--bd:rgba(255,255,255,.1);--bds:rgba(255,255,255,.18);--tx:#f0efe8;--tx2:#c3c2b7;--tx3:#898781;--ac:#3987e5;--acbg:#1a2d4a;--dg:#e66767;--dgbg:#3a1e1e}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;min-height:100vh}
+.topbar{background:var(--sf);border-bottom:.5px solid var(--bd);padding:0 1.25rem;height:52px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.app-title{font-size:15px;font-weight:500;margin-right:auto}
+.tb-btn{padding:5px 12px;border-radius:var(--rd);border:.5px solid var(--bds);background:transparent;color:var(--tx2);font-size:12px;cursor:pointer}
+.tb-btn:hover{background:var(--sf2)}
+.tb-btn.danger{color:var(--dg);border-color:var(--dg)}
+.tb-btn.danger:hover{background:var(--dgbg)}
+.wrap{padding:1.25rem 1.5rem 2rem}
+.profile-bar{display:flex;flex-wrap:wrap;gap:10px 20px;padding:.65rem 1rem;background:var(--sf);border:.5px solid var(--bd);border-radius:var(--rd);margin-bottom:1rem}
+.pf{display:flex;align-items:center;gap:6px}
+.pf label{font-size:11px;color:var(--tx3);white-space:nowrap;font-weight:500}
+.pf input{border:none;background:transparent;font-size:13px;font-weight:500;color:var(--tx);padding:0;width:130px;font-family:inherit}
+.pf input:focus{outline:none;border-bottom:.5px solid var(--ac)}
+.psep{width:.5px;height:16px;background:var(--bds)}
+.input-panel{background:var(--sf);border:.5px solid var(--bd);border-radius:var(--rd);padding:.75rem 1rem;margin-bottom:1rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:.5rem}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:11px;color:var(--tx2)}
+select{height:34px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx);font-family:inherit;cursor:pointer}
+input[type=text]{height:34px;padding:0 10px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx);font-family:inherit}
+input[type=number]{height:32px;width:90px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx);font-family:inherit}
+select:focus,input:focus{outline:none;border-color:var(--ac)}
+.chip{font-size:12px;padding:3px 10px;border-radius:20px;border:.5px solid var(--bds);background:transparent;color:var(--tx2);cursor:pointer}
+.chip.active{border-color:var(--ac);background:var(--acbg);color:var(--ac)}
+.chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.btn-add{padding:7px 18px;border-radius:var(--rd);border:none;background:var(--ac);color:#fff;font-size:13px;font-weight:500;cursor:pointer;height:34px}
+.btn-add:hover{opacity:.88}
+.hint-sm{font-size:11px;color:var(--tx3);min-height:15px}
+.action-row{display:flex;gap:8px;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
+.dd{position:relative;display:inline-block}
+.dd-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--rd);border:.5px solid var(--bds);background:transparent;color:var(--tx2);font-size:12px;cursor:pointer;white-space:nowrap}
+.dd-btn:hover{background:var(--sf2)}
+.dd-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--sf);border:.5px solid var(--bds);border-radius:var(--rd);box-shadow:0 4px 14px rgba(0,0,0,.12);padding:6px;z-index:50;min-width:140px}
+.dd-menu.open{display:block}
+.dd-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--tx)}
+.dd-item:hover{background:var(--sf2)}
+.dd-item input{width:15px;height:15px;cursor:pointer;accent-color:var(--ac)}
+.tl-outer{overflow-x:auto;padding-bottom:.5rem;background:var(--sf);border:.5px solid var(--bd);border-radius:var(--rd);padding:1rem}
+.tl-inner{position:relative;min-width:max-content}
+.tl-top{position:relative;height:90px}
+.tl-axis-row{position:relative;height:24px}
+.tl-axis-line{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--bds)}
+.tl-bottom{position:relative}
+.empty{text-align:center;padding:3rem 1rem;color:var(--tx3);font-size:14px;background:var(--sf);border:.5px solid var(--bd);border-radius:var(--rd)}
+.notes-panel{background:var(--sf);border:.5px solid var(--bd);border-radius:var(--rd);padding:.75rem 1rem;margin-top:1rem}
+.notes-header{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.notes-header span{font-size:11px;font-weight:600;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase}
+.ntoggle{font-size:12px;color:var(--tx3);transition:transform .2s}
+.ntoggle.open{transform:rotate(180deg)}
+.notes-body{display:none;margin-top:.5rem}
+.notes-body.open{display:block}
+.notes-body textarea{width:100%;height:70px;resize:vertical;font-size:13px;padding:8px;border:.5px solid var(--bds);border-radius:var(--rd);background:var(--sf2);color:var(--tx);font-family:inherit}
+.notes-body textarea:focus{outline:none;border-color:var(--ac)}
+.notes-saved{font-size:11px;color:var(--tx3);margin-top:4px;min-height:14px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--sf);border:.5px solid var(--bd);border-radius:12px;padding:1.5rem;width:min(340px,90vw)}
+.modal h3{font-size:16px;font-weight:500;margin-bottom:.5rem}
+.modal p{font-size:13px;color:var(--tx2);margin-bottom:1.25rem}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-btns button{padding:6px 16px;border-radius:var(--rd);border:.5px solid var(--bds);background:transparent;color:var(--tx);font-size:13px;cursor:pointer}
+.modal-btns .danger{background:var(--dg);color:#fff;border-color:var(--dg)}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--tx);color:var(--bg);padding:8px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media print {
+  * { -webkit-print-color-adjust:exact; print-color-adjust:exact; color:#000 !important; }
+  body { background:#fff !important; }
+  .topbar, .input-panel, .action-row, .notes-panel { display:none !important; }
+  .wrap { padding:0 !important; }
+  .profile-bar {
+    border:1.5px solid #222 !important;
+    background:#f7f7f7 !important;
+    margin-bottom:8px;
+    padding:.4rem .8rem !important;
+    page-break-after:avoid;
+  }
+  .pf label { color:#555 !important; }
+  .pf input { color:#000 !important; font-weight:700 !important; }
+  .tl-outer {
+    overflow:visible !important;
+    border:none !important;
+    padding:0 !important;
+    margin-top:0 !important;
+    background:#fff !important;
+  }
+  .print-title {
+    display:block !important;
+    text-align:center;
+    font-size:18px;
+    font-weight:800;
+    letter-spacing:.1em;
+    margin-bottom:14px;
+    width:100%;
+  }
+  /* 上方時間標籤區保留適當高度，避免與標題重疊 */
+  .tl-top { height:56px !important; }
+  .tl-axis-row { height:18px !important; }
+  .tl-axis-line { background:#333 !important; }
+  .ev-print-card { border:1px solid #999 !important; background:#fff !important; }
+  @page { size: A4 landscape; margin: 5mm 6mm; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="app-title">📋 重大事件表（橫式）</span>
+  <button class="tb-btn" onclick="window.print()">🖨 列印 / 匯出PDF</button>
+  <button class="tb-btn" onclick="exportJSON()">💾 備份資料</button>
+  <button class="tb-btn" onclick="importJSON()">📂 匯入備份</button>
+  <button class="tb-btn danger" onclick="confirmClear()">🗑 清除全部</button>
+</div>
+<div class="wrap">
+<div class="print-title" id="printTitle" style="display:none">重大事件史</div>
+<div class="profile-bar">
+  <div class="pf">
+    <label>標題</label>
+    <select id="titleSel" onchange="onTitleChange()" style="height:30px;font-size:13px;border:none;background:transparent;color:var(--tx);font-weight:600;cursor:pointer;font-family:inherit">
+      <option value="重大生命史">重大生命史</option>
+      <option value="重大事件史" selected>重大事件史</option>
+      <option value="問題史">問題史</option>
+      <option value="__custom__">其它（自填）</option>
+    </select>
+    <input type="text" id="titleCustom" placeholder="自訂標題" oninput="onTitleCustomInput()" style="display:none;width:120px">
+  </div>
+  <div class="psep"></div>
+  <div class="pf"><label>學員姓名</label><input type="text" id="profileName" placeholder="請輸入姓名" oninput="saveProfile()"></div>
+  <div class="psep"></div>
+  <div class="pf"><label>課程名稱</label><input type="text" id="profileCourse" placeholder="課程名稱" oninput="saveProfile()"></div>
+  <div class="psep"></div>
+  <div class="pf"><label>填寫日期</label><input type="text" id="profileDate" placeholder="YYYY/MM/DD" oninput="saveProfile()"></div>
+  <div class="psep"></div>
+  <div class="pf"><label>帶領者</label><input type="text" id="profileFacilitator" placeholder="帶領者" oninput="saveProfile()"></div>
+</div>
+
+<div class="input-panel">
+  <div class="row" style="margin-bottom:.4rem">
+    <div class="fg">
+      <label>出生年（西元）</label>
+      <input type="number" id="birthYear" value="1980" min="1900" max="2020" onchange="onBirthChange()">
+    </div>
+    <span class="hint-sm" id="birthHint" style="align-self:center"></span>
+    <div class="chips" style="margin-left:8px;align-self:center">
+      <span style="font-size:11px;color:var(--tx2)">輸入：</span>
+      <button class="chip active mode-btn" onclick="setMode('age')">年紀</button>
+      <button class="chip mode-btn" onclick="setMode('roc')">民國年</button>
+      <button class="chip mode-btn" onclick="setMode('ad')">西元年</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="fg">
+      <label id="selLabel">年紀（歲）</label>
+      <select id="yearSel_age" onchange="updateHint()" style="min-width:110px"></select>
+      <select id="yearSel_roc" onchange="updateHint()" style="min-width:130px;display:none"></select>
+      <select id="yearSel_ad" onchange="updateHint()" style="min-width:110px;display:none"></select>
+    </div>
+    <div class="fg" style="flex:1;min-width:200px">
+      <label>事件描述</label>
+      <input type="text" id="descInput" placeholder="發生了什麼事…">
+    </div>
+    <button class="btn-add" onclick="addEvent()">＋ 加入</button>
+  </div>
+  <div class="hint-sm" id="hint"></div>
+</div>
+
+<div class="action-row">
+  <div class="dd">
+    <button class="dd-btn" onclick="toggleDD(event)">
+      <span id="ddLabel">顯示：年紀</span>
+      <span style="font-size:9px">▾</span>
+    </button>
+    <div class="dd-menu" id="ddMenu">
+      <label class="dd-item"><input type="checkbox" value="age" checked onchange="updateDisplayFmt('age')"> 年紀</label>
+      <label class="dd-item"><input type="checkbox" value="ad" onchange="updateDisplayFmt('ad')"> 西元年</label>
+      <label class="dd-item"><input type="checkbox" value="roc" onchange="updateDisplayFmt('roc')"> 民國年</label>
+    </div>
+  </div>
+</div>
+
+<div id="empty" class="empty">
+  <div style="font-size:32px;opacity:.3;margin-bottom:.5rem">📋</div>
+  填入年份與事件，開始建立橫式人生時間軸
+</div>
+
+<div class="tl-outer" id="tlOuter" style="display:none">
+  <div class="tl-inner" id="tlInner">
+    <div class="tl-top" id="tlTop"></div>
+    <div class="tl-axis-row"><div class="tl-axis-line"></div></div>
+    <div class="tl-bottom" id="tlBottom"></div>
+  </div>
+</div>
+
+<div class="notes-panel">
+  <div class="notes-header" onclick="toggleNotes()">
+    <span>備註</span><span class="ntoggle" id="ntoggle">▼</span>
+  </div>
+  <div class="notes-body" id="notesBody">
+    <textarea id="notesText" placeholder="輸入備註、觀察、諮商摘要…" oninput="saveNotes()"></textarea>
+    <div class="notes-saved" id="notesSaved"></div>
+  </div>
+</div>
+</div>
+
+<div class="modal-bg" id="clearModal">
+  <div class="modal">
+    <h3>清除全部事件？</h3>
+    <p>這個動作無法復原。</p>
+    <div class="modal-btns">
+      <button onclick="closeModal()">取消</button>
+      <button class="danger" onclick="clearAll()">確認清除</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+var ROC=1911;
+var CARD_W=46; var COL_GAP=8; var PX_PER_COL=CARD_W+COL_GAP;
+var events=JSON.parse(localStorage.getItem('lifeEventsH')||'[]');
+var mode='age';
+var displayFmt=JSON.parse(localStorage.getItem('lifeEventsFmtH')||'{"age":true,"ad":false,"roc":false}');
+// 確保只有一個為真（互斥）
+(function(){var keys=['age','ad','roc'];var found=false;keys.forEach(function(k){if(displayFmt[k]){if(found)displayFmt[k]=false;else found=true;}});if(!found)displayFmt.age=true;})();
+var notesTimer=null;
+
+function save(){localStorage.setItem('lifeEventsH',JSON.stringify(events));}
+function getBirth(){return parseInt(document.getElementById('birthYear').value)||1980;}
+function getYearSel(){return document.getElementById(mode==='roc'?'yearSel_roc':mode==='ad'?'yearSel_ad':'yearSel_age');}
+function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2000);}
+function saveProfile(){localStorage.setItem('lifeEventsProfileH',JSON.stringify({name:document.getElementById('profileName').value,course:document.getElementById('profileCourse').value,date:document.getElementById('profileDate').value,facilitator:document.getElementById('profileFacilitator').value}));}
+function loadProfile(){try{var p=JSON.parse(localStorage.getItem('lifeEventsProfileH')||'{}');if(p.name)document.getElementById('profileName').value=p.name;if(p.course)document.getElementById('profileCourse').value=p.course;if(p.date)document.getElementById('profileDate').value=p.date;if(p.facilitator)document.getElementById('profileFacilitator').value=p.facilitator;}catch(e){}}
+
+function getTitleText(){
+  var sel=document.getElementById('titleSel').value;
+  if(sel==='__custom__')return document.getElementById('titleCustom').value.trim()||'重大事件史';
+  return sel;
+}
+function applyTitle(){
+  var t=getTitleText();
+  document.getElementById('printTitle').textContent=t;
+  document.title=t+'（橫式）';
+  document.querySelector('.app-title').textContent='\U0001F4CB '+t+'（橫式）';
+}
+function onTitleChange(){
+  var sel=document.getElementById('titleSel').value;
+  document.getElementById('titleCustom').style.display=(sel==='__custom__')?'':'none';
+  applyTitle();saveTitle();
+}
+function onTitleCustomInput(){applyTitle();saveTitle();}
+function saveTitle(){
+  localStorage.setItem('lifeEventsTitleH',JSON.stringify({sel:document.getElementById('titleSel').value,custom:document.getElementById('titleCustom').value}));
+}
+function loadTitle(){
+  try{
+    var t=JSON.parse(localStorage.getItem('lifeEventsTitleH')||'{}');
+    if(t.sel){
+      document.getElementById('titleSel').value=t.sel;
+      if(t.custom)document.getElementById('titleCustom').value=t.custom;
+      document.getElementById('titleCustom').style.display=(t.sel==='__custom__')?'':'none';
+    }
+  }catch(e){}
+  applyTitle();
+}
+function saveNotes(){localStorage.setItem('lifeEventsNotesH',document.getElementById('notesText').value);clearTimeout(notesTimer);document.getElementById('notesSaved').textContent='';notesTimer=setTimeout(function(){document.getElementById('notesSaved').textContent='\u2713 \u5df2\u81ea\u52d5\u5132\u5b58';},800);}
+function loadNotes(){document.getElementById('notesText').value=localStorage.getItem('lifeEventsNotesH')||'';}
+function toggleNotes(){var b=document.getElementById('notesBody'),i=document.getElementById('ntoggle');var o=b.classList.toggle('open');i.classList.toggle('open',o);}
+
+function onBirthChange(){var b=getBirth(),roc=b-ROC;document.getElementById('birthHint').textContent='\u6c11\u570b'+(roc>0?roc:'\u2014')+'\u5e74\u51fa\u751f';buildSelect();}
+function buildSelect(){
+  var birth=getBirth(),cur=new Date().getFullYear();
+  var sa=document.getElementById('yearSel_age'),sr=document.getElementById('yearSel_roc'),sd=document.getElementById('yearSel_ad');
+  sa.innerHTML='';for(var i=0;i<=100;i++){var o=document.createElement('option');o.value=i;o.textContent=i+' \u6b72';sa.appendChild(o);}
+  sr.innerHTML='';for(var y=cur-ROC;y>=Math.max(birth-ROC,1);y--){var o=document.createElement('option');o.value=y;o.textContent='\u6c11\u570b'+y+'\u5e74';sr.appendChild(o);}
+  sd.innerHTML='';for(var y=cur;y>=birth;y--){var o=document.createElement('option');o.value=y;o.textContent=y+' \u5e74';sd.appendChild(o);}
+  updateHint();
+}
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.mode-btn').forEach(function(b,i){b.classList.toggle('active',['age','roc','ad'][i]===m);});
+  document.getElementById('selLabel').textContent=m==='age'?'\u5e74\u7d00\uff08\u6b72\uff09':m==='roc'?'\u6c11\u570b\u5e7e\u5e74':'\u897f\u5143\u5e7e\u5e74';
+  ['age','roc','ad'].forEach(function(t){document.getElementById('yearSel_'+t).style.display=t===m?'':'none';});
+  updateHint();
+}
+function updateHint(){
+  var val=parseInt(getYearSel().value),birth=getBirth(),h=document.getElementById('hint');
+  if(isNaN(val)){h.textContent='';return;}
+  if(mode==='roc'){var ad=val+ROC,age=ad-birth;h.textContent='= \u897f\u5143'+ad+'\u5e74'+(age>=0?' / '+age+' \u6b72':'');}
+  else if(mode==='ad'){var roc=val-ROC,age=val-birth;h.textContent=(roc>0?'\u6c11\u570b'+roc+'\u5e74 / ':'')+(age>=0?age+' \u6b72':'');}
+  else{var ad=birth+val,roc=ad-ROC;h.textContent='= \u897f\u5143'+ad+'\u5e74'+(roc>0?' / \u6c11\u570b'+roc+'\u5e74':'');}
+}
+
+function toggleDD(ev){ev.stopPropagation();document.getElementById('ddMenu').classList.toggle('open');}
+function updateDisplayFmt(clicked){
+  // 三者互斥：只能選一個
+  if(document.querySelector('#ddMenu input[value='+clicked+']').checked){
+    ['age','ad','roc'].forEach(function(v){
+      if(v!==clicked)document.querySelector('#ddMenu input[value='+v+']').checked=false;
+    });
+  }
+  var boxes=document.querySelectorAll('#ddMenu input[type=checkbox]');
+  displayFmt={age:false,ad:false,roc:false};
+  boxes.forEach(function(b){if(b.checked)displayFmt[b.value]=true;});
+  // 至少保留一個（預設年紀）
+  if(!displayFmt.age&&!displayFmt.ad&&!displayFmt.roc){displayFmt.age=true;document.querySelector('#ddMenu input[value=age]').checked=true;}
+  localStorage.setItem('lifeEventsFmtH',JSON.stringify(displayFmt));
+  updateDDLabel();render();
+}
+function updateDDLabel(){
+  var parts=[];
+  if(displayFmt.age)parts.push('\u5e74\u7d00');
+  if(displayFmt.ad)parts.push('\u897f\u5143\u5e74');
+  if(displayFmt.roc)parts.push('\u6c11\u570b\u5e74');
+  document.getElementById('ddLabel').textContent='\u986f\u793a\uff1a'+parts.join('\u3001');
+}
+document.addEventListener('click',function(){document.getElementById('ddMenu').classList.remove('open');});
+
+function addEvent(){
+  var raw=parseInt(getYearSel().value);
+  var desc=document.getElementById('descInput').value.trim();
+  if(!desc){document.getElementById('descInput').focus();return;}
+  var birth=getBirth(),adYear,ageNum,sortKey;
+  if(mode==='age'){ageNum=raw;adYear=birth+raw;sortKey=raw;}
+  else if(mode==='roc'){adYear=raw+ROC;ageNum=adYear-birth;sortKey=ageNum;}
+  else{adYear=raw;ageNum=adYear-birth;sortKey=ageNum;}
+  events.push({id:Date.now(),sortKey:sortKey,ageNum:ageNum,adYear:adYear,rocYear:adYear-ROC,desc:desc});
+  events.sort(function(a,b){return a.sortKey-b.sortKey;});
+  save();
+  document.getElementById('descInput').value='';
+  render();toast('\u2713 \u5df2\u52a0\u5165\u4e8b\u4ef6');
+}
+function delEvent(id){events=events.filter(function(e){return e.id!==id;});save();render();}
+function confirmClear(){document.getElementById('clearModal').classList.add('open');}
+function closeModal(){document.getElementById('clearModal').classList.remove('open');}
+function clearAll(){events=[];save();closeModal();render();toast('\u5df2\u6e05\u9664\u5168\u90e8');}
+
+function vText(text){
+  var html='',i=0;
+  while(i<text.length){
+    if(/[0-9]/.test(text[i])){
+      var nums='';
+      while(i<text.length && /[0-9]/.test(text[i])){nums+=text[i];i++;}
+      if(nums.length<=2){html+='<span style="text-combine-upright:all;-webkit-text-combine:horizontal;">'+nums+'</span>';}
+      else{html+=nums;}
+    }else{
+      var ch=text[i];
+      if(ch==='<')ch='&lt;'; else if(ch==='>')ch='&gt;'; else if(ch==='&')ch='&amp;';
+      html+=ch;i++;
+    }
+  }
+  return html;
+}
+
+// 上方時間標籤：年紀放在年旁邊
+function buildTimeParts(e){
+  var parts=[];
+  if(displayFmt.age)parts.push(e.ageNum+' \u6b72');
+  if(displayFmt.ad)parts.push('\u897f\u5143'+e.adYear+'\u5e74');
+  if(displayFmt.roc&&e.rocYear>0)parts.push('\u6c11\u570b'+e.rocYear+'\u5e74');
+  return parts;
+}
+function buildAgeLabel(e){
+  if(displayFmt.age)return e.ageNum+' \u6b72';
+  if(displayFmt.ad)return '\u897f\u5143'+e.adYear+'\u5e74';
+  if(displayFmt.roc&&e.rocYear>0)return '\u6c11\u570b'+e.rocYear+'\u5e74';
+  return e.ageNum+' \u6b72';
+}
+
+var MAX_CARD_H=420; // 卡片最高（超過自動換欄）
+
+function render(){
+  var has=events.length>0;
+  document.getElementById('empty').style.display=has?'none':'block';
+  document.getElementById('tlOuter').style.display=has?'block':'none';
+  if(!has)return;
+
+  var PAD=8;
+  var tlTop=document.getElementById('tlTop');
+  var tlBottom=document.getElementById('tlBottom');
+  tlTop.innerHTML=''; tlBottom.innerHTML='';
+
+  // 建立所有卡片（可變寬度：長文字換多欄變寬）
+  var cardEls=[];
+  events.forEach(function(e){
+    var card=document.createElement('div');
+    card.className='ev-print-card';
+    card.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;border:.5px solid var(--bd);border-radius:var(--rd);background:var(--sf);padding:14px 11px;max-height:'+MAX_CARD_H+'px;min-height:130px;position:relative;transition:border-color .12s;line-height:1.7;display:inline-block';
+    var content=document.createElement('div');
+    content.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;max-height:'+(MAX_CARD_H-28)+'px';
+    content.innerHTML=
+      '<span style="font-size:14px;color:var(--tx)">'+vText(e.desc)+'</span>';
+    card.appendChild(content);
+    cardEls.push(card);
+  });
+
+  // 量測每張卡片實際寬度（含換欄後變寬）
+  var cardWidths=[];
+  var measureWrap=document.createElement('div');
+  measureWrap.style.cssText='position:absolute;visibility:hidden;left:0;top:0';
+  document.body.appendChild(measureWrap);
+  cardEls.forEach(function(card){
+    var clone=card.cloneNode(true);
+    measureWrap.appendChild(clone);
+    cardWidths.push(clone.offsetWidth);
+  });
+  document.body.removeChild(measureWrap);
+
+  // 依實際寬度排列，第一筆從左側 PAD 開始
+  var positions=[];
+  var xCursor=PAD;
+  cardWidths.forEach(function(w){
+    positions.push(xCursor+w/2);
+    xCursor+=w+COL_GAP;
+  });
+  var totalW=xCursor+PAD;
+  document.getElementById('tlInner').style.width=totalW+'px';
+
+  var maxCardH=140;
+
+  events.forEach(function(e,idx){
+    var x=positions[idx];
+
+    // 上方時間標籤（直式）
+    var topCol=document.createElement('div');
+    topCol.style.cssText='position:absolute;left:'+x+'px;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+    var parts=buildTimeParts(e);
+    if(parts.length){
+      var timeLbl=document.createElement('div');
+      timeLbl.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;font-weight:600;color:var(--tx2);line-height:1.5;margin-bottom:4px;white-space:nowrap';
+      timeLbl.innerHTML=vText(parts.join('\u3000'));
+      topCol.appendChild(timeLbl);
+    }
+    var lu=document.createElement('div');lu.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol.appendChild(lu);
+    tlTop.appendChild(topCol);
+
+    // 下方事件欄（與上方同一個中心 x）
+    var btmCol=document.createElement('div');
+    btmCol.style.cssText='position:absolute;left:'+x+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+    var ld=document.createElement('div');ld.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol.appendChild(ld);
+
+    var card=cardEls[idx];
+    card.onmouseenter=function(){var d=this.querySelector('.del-btn');if(d)d.style.display='block';this.style.borderColor='var(--bds)';};
+    card.onmouseleave=function(){var d=this.querySelector('.del-btn');if(d)d.style.display='none';this.style.borderColor='var(--bd)';};
+
+    var db=document.createElement('button');
+    db.className='del-btn';
+    db.style.cssText='position:absolute;top:4px;left:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
+    db.textContent='\u2715';
+    db.onclick=(function(id){return function(ev){ev.stopPropagation();delEvent(id);};})(e.id);
+    card.appendChild(db);
+
+    btmCol.appendChild(card);
+    tlBottom.appendChild(btmCol);
+
+    var h=card.offsetHeight;
+    if(h>maxCardH)maxCardH=h;
+  });
+
+  document.getElementById('tlBottom').style.height=(maxCardH+20)+'px';
+}
+
+function exportJSON(){
+  var profile=JSON.parse(localStorage.getItem('lifeEventsProfileH')||'{}');
+  var notes=localStorage.getItem('lifeEventsNotesH')||'';
+  var json=JSON.stringify({profile:profile,notes:notes,events:events},null,2);
+  var a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  a.download=(profile.name?'\u91cd\u5927\u4e8b\u4ef6\u8868_'+profile.name:'\u91cd\u5927\u4e8b\u4ef6\u8868\u5099\u4efd')+'.json';a.click();toast('\u2713 \u5099\u4efd\u5df2\u4e0b\u8f09');
+}
+function importJSON(){
+  var input=document.createElement('input');input.type='file';input.accept='.json';
+  input.onchange=function(){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var parsed=JSON.parse(ev.target.result);if(Array.isArray(parsed)){events=parsed;}else{events=parsed.events||[];if(parsed.profile){localStorage.setItem('lifeEventsProfileH',JSON.stringify(parsed.profile));loadProfile();}if(parsed.notes!==undefined){localStorage.setItem('lifeEventsNotesH',parsed.notes);loadNotes();}}events.sort(function(a,b){return a.sortKey-b.sortKey;});save();render();toast('\u2713 \u532f\u5165 '+events.length+' \u7b46\u4e8b\u4ef6');}catch(e){toast('\u683c\u5f0f\u932f\u8aa4');}};reader.readAsText(file);};input.click();
+}
+
+document.querySelector('#ddMenu input[value=age]').checked=!!displayFmt.age;
+document.querySelector('#ddMenu input[value=ad]').checked=!!displayFmt.ad;
+document.querySelector('#ddMenu input[value=roc]').checked=!!displayFmt.roc;
+updateDDLabel();
+
+var today=new Date();
+document.getElementById('profileDate').value=today.getFullYear()+'/'+(today.getMonth()+1).toString().padStart(2,'0')+'/'+today.getDate().toString().padStart(2,'0');
+loadTitle();loadProfile();loadNotes();onBirthChange();render();
+document.getElementById('descInput').addEventListener('keydown',function(e){if(e.key==='Enter')addEvent();});
+</script>
+</body>
+</html>
