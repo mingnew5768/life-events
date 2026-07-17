@@ -166,7 +166,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
       <select id="yearSel_ad" onchange="updateHint()" style="min-width:110px;display:none"></select>
     </div>
     <div class="fg" id="rangeEndWrap" style="display:none">
-      <label>\u81F3\uFF08\u5340\u9593\u7D50\u675F\uFF09</label>
+      <label>至（區間結束）</label>
       <select id="yearSel_end" onchange="updateHint()" style="min-width:110px"></select>
     </div>
     <div class="fg" style="flex:1;min-width:200px">
@@ -178,7 +178,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   <div class="row" style="margin-top:-4px">
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);cursor:pointer">
       <input type="checkbox" id="rangeToggle" style="width:14px;height:14px;accent-color:var(--ac)" onchange="onRangeToggle()">
-      \u9019\u662F\u4E00\u6BB5\u5340\u9593\uFF08\u4F8B\u5982 6\u523012\u6B72\uFF09\uFF0C\u4E0D\u662F\u56FA\u5B9A\u5E74\u7D00
+      這是一段區間（例如 6到12歲），不是固定年紀
     </label>
   </div>
   <div class="hint-sm" id="hint"></div>
@@ -240,9 +240,9 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
         <span style="font-size:12px;color:var(--tx2);white-space:nowrap">年紀</span>
         <input type="number" id="editAge" min="0" max="120" style="width:80px;height:32px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)">
         <span style="font-size:12px;color:var(--tx3)">歲</span>
-        <span style="font-size:12px;color:var(--tx3)">\u81f3</span>
-        <input type="number" id="editAgeEnd" min="0" max="120" placeholder="\uff08\u9078\u586b\uff09" style="width:80px;height:32px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)">
-        <span style="font-size:12px;color:var(--tx3)">\u6b72\uff08\u5340\u9593\u4e8b\u4ef6\u624d\u586b\uff09</span>
+        <span style="font-size:12px;color:var(--tx3)">至</span>
+        <input type="number" id="editAgeEnd" min="0" max="120" placeholder="（選填）" style="width:80px;height:32px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)">
+        <span style="font-size:12px;color:var(--tx3)">歲（區間事件才填）</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:12px;color:var(--tx2)">事件描述</span>
