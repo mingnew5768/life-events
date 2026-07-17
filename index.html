@@ -113,14 +113,10 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   .tl-axis-line { background:#333 !important; }
   .ev-print-card { border:1px solid #999 !important; background:#fff !important; }
 
-  /* 備註：列印時強制展開，改用純文字鏡像顯示，內容為空時整區不印出 */
-  .notes-panel { border:1.5px solid #222 !important; background:#fff !important; margin-top:14px; page-break-inside:avoid; }
-  .notes-panel.empty-notes { display:none !important; }
-  .notes-header .ntoggle { display:none !important; }
-  .notes-header span { font-size:16px !important; }
-  .notes-body { display:block !important; }
-  .notes-body textarea { display:none !important; }
-  .notes-saved { display:none !important; }
+  /* 備註：畫面編輯用面板列印時完全不顯示，改由 JS 動態產生列印專用備註區塊，
+     並依實際量測高度自動決定要放在最後一頁時間軸下方（塞得下時），
+     還是另起新的一頁（塞不下時），避免版面被壓縮 */
+  .notes-panel { display:none !important; }
   .print-only:not(#tlPrintPages) { display:block !important; font-size:19px !important; line-height:1.8 !important; }
 
   @page { size: A4 landscape; margin: 5mm 6mm; }
@@ -393,17 +389,9 @@ function loadTitle(){
   }catch(e){}
   applyTitle();
 }
-function saveNotes(){localStorage.setItem('lifeEventsNotesH',document.getElementById('notesText').value);clearTimeout(notesTimer);document.getElementById('notesSaved').textContent='';notesTimer=setTimeout(function(){document.getElementById('notesSaved').textContent='\u2713 \u5df2\u81ea\u52d5\u5132\u5b58';},800);}
+function saveNotes(){localStorage.setItem('lifeEventsNotesH',document.getElementById('notesText').value);clearTimeout(notesTimer);document.getElementById('notesSaved').textContent='';notesTimer=setTimeout(function(){document.getElementById('notesSaved').textContent='\u2713 \u5df2\u81ea\u52d5\u5132\u5b58';render();},800);}
 function loadNotes(){document.getElementById('notesText').value=localStorage.getItem('lifeEventsNotesH')||'';}
 function toggleNotes(){var b=document.getElementById('notesBody'),i=document.getElementById('ntoggle');var o=b.classList.toggle('open');i.classList.toggle('open',o);}
-function syncNotesForPrint(){
-  var val=document.getElementById('notesText').value;
-  document.getElementById('notesPrintView').textContent=val;
-  var panel=document.getElementById('notesPanel');
-  if(val.trim())panel.classList.remove('empty-notes');
-  else panel.classList.add('empty-notes');
-}
-window.addEventListener('beforeprint',syncNotesForPrint);
 
 function onBirthChange(){
   var b=getBirth();
@@ -699,51 +687,182 @@ function render(){
   }
   breakStart.push(events.length);
 
+  var notesVal=(document.getElementById('notesText')||{}).value||'';
+  var notesTrim=notesVal.trim();
+  var notesBlockH=notesTrim?measureNotesBlockHeight(notesVal):0;
+
   for(var g=0; g<breakStart.length-1; g++){
     var gs=breakStart[g], ge=breakStart[g+1];
-    var gBase=positions[gs]-cardWidths[gs]/2-PAD;
-    var gWidth=(positions[ge-1]+cardWidths[ge-1]/2)-gBase+PAD;
+    var isLastGroup=(g===breakStart.length-2);
+    var headerAllowance=(g===0)?(55+63):0;
 
-    var tr=document.createElement('tr');
-    tr.className='pp-row';
-    var td=document.createElement('td');
-    td.className='pp-cell';
-    var pInner=document.createElement('div');
-    pInner.style.cssText='position:relative;width:'+gWidth+'px';
-
-    var pTop=document.createElement('div');pTop.className='tl-top';
-    var pAxisRow=document.createElement('div');pAxisRow.className='tl-axis-row';
-    var pAxisLine=document.createElement('div');pAxisLine.className='tl-axis-line';
-    pAxisRow.appendChild(pAxisLine);
-    var pBottom=document.createElement('div');pBottom.className='tl-bottom';
-    pBottom.style.height=(PRINT_CARD_TARGET_H+20)+'px';
-
-    for(var idx=gs; idx<ge; idx++){
-      var e2=events[idx];
-      var x2=positions[idx]-gBase;
-
-      var topCol2=document.createElement('div');
-      topCol2.style.cssText='position:absolute;left:'+x2+'px;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
-      var timeLbl2=makeTimeLabel(e2);
-      if(timeLbl2)topCol2.appendChild(timeLbl2);
-      var lu2=document.createElement('div');lu2.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol2.appendChild(lu2);
-      pTop.appendChild(topCol2);
-
-      var btmCol2=document.createElement('div');
-      btmCol2.style.cssText='position:absolute;left:'+x2+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
-      var ld2=document.createElement('div');ld2.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol2.appendChild(ld2);
-      var card2=makeCardDiv(e2.desc,false,null,PRINT_CARD_TARGET_H,PRINT_CARD_TARGET_H);
-      btmCol2.appendChild(card2);
-      pBottom.appendChild(btmCol2);
+    if(!isLastGroup || !notesTrim){
+      // 一般頁面（或最後一頁但沒有備註）：維持原本固定高度的排版方式，行為不變
+      tlPrintPages.appendChild(buildStandardGroupRow(gs,ge,PRINT_CARD_TARGET_H,positions,cardWidths).tr);
+      continue;
     }
 
-    pInner.appendChild(pTop);
-    pInner.appendChild(pAxisRow);
-    pInner.appendChild(pBottom);
-    td.appendChild(pInner);
-    tr.appendChild(td);
-    tlPrintPages.appendChild(tr);
+    // 最後一頁，而且有備註要處理：先試標準高度是否連同備註塞得下
+    var stdBuilt=buildStandardGroupRow(gs,ge,PRINT_CARD_TARGET_H,positions,cardWidths);
+    var stdRowH=64+18+(PRINT_CARD_TARGET_H+20);
+    var stdAvail=PRINT_PAGE_H-headerAllowance-stdRowH-10;
+
+    if(notesBlockH<=stdAvail){
+      tlPrintPages.appendChild(stdBuilt.tr);
+      stdBuilt.tr.querySelector('.pp-cell').appendChild(makeNotesBlock(notesVal,PRINT_PAGE_W));
+      continue;
+    }
+
+    // 塞不下：逐步縮小這一頁卡片高度，利用右側空出來的寬度換取高度，直到備註塞得下為止
+    var fitted=null;
+    for(var tryH=PRINT_CARD_TARGET_H-20; tryH>=200; tryH-=20){
+      var tryBuilt=buildLocalGroupRow(gs,ge,tryH);
+      var tryRowH=64+18+(tryH+20);
+      var tryAvail=PRINT_PAGE_H-headerAllowance-tryRowH-10;
+      if(tryBuilt.gWidth<=PRINT_PAGE_W && notesBlockH<=tryAvail){
+        fitted=tryBuilt;
+        break;
+      }
+    }
+
+    if(fitted){
+      tlPrintPages.appendChild(fitted.tr);
+      fitted.tr.querySelector('.pp-cell').appendChild(makeNotesBlock(notesVal,PRINT_PAGE_W));
+    }else{
+      // 就算縮到最小也塞不下，維持標準高度，備註改成獨立新的一頁
+      tlPrintPages.appendChild(stdBuilt.tr);
+      var ntr=document.createElement('tr');ntr.className='pp-row';
+      var ntd=document.createElement('td');ntd.className='pp-cell';
+      ntd.appendChild(makeNotesBlock(notesVal,PRINT_PAGE_W));
+      ntr.appendChild(ntd);
+      tlPrintPages.appendChild(ntr);
+    }
   }
+}
+
+function makeNotesBlock(val,w){
+  var block=document.createElement('div');
+  block.id='notesPrintBlock';
+  block.style.cssText='box-sizing:border-box;border:1.5px solid #222;background:#fff;padding:12px 16px;margin-top:14px;width:'+w+'px;page-break-inside:avoid;break-inside:avoid';
+  var h=document.createElement('div');
+  h.style.cssText='font-size:16px;font-weight:600;color:#333;margin-bottom:6px';
+  h.textContent='\u5099\u8a3b';
+  var b=document.createElement('div');
+  b.style.cssText='white-space:pre-wrap;font-size:19px;line-height:1.8;color:#000';
+  b.textContent=val;
+  block.appendChild(h);block.appendChild(b);
+  return block;
+}
+
+function measureNotesBlockHeight(val){
+  var tmp=makeNotesBlock(val,PRINT_PAGE_W);
+  tmp.style.position='absolute';tmp.style.visibility='hidden';tmp.style.left='-9999px';tmp.style.top='0';
+  document.body.appendChild(tmp);
+  var hgt=tmp.offsetHeight;
+  document.body.removeChild(tmp);
+  return hgt;
+}
+
+function buildStandardGroupRow(gs,ge,cardH,positions,cardWidths){
+  var gBase=positions[gs]-cardWidths[gs]/2-8;
+  var gWidth=(positions[ge-1]+cardWidths[ge-1]/2)-gBase+8;
+
+  var tr=document.createElement('tr');
+  tr.className='pp-row';
+  var td=document.createElement('td');
+  td.className='pp-cell';
+  var pInner=document.createElement('div');
+  pInner.style.cssText='position:relative;width:'+gWidth+'px';
+
+  var pTop=document.createElement('div');pTop.className='tl-top';
+  var pAxisRow=document.createElement('div');pAxisRow.className='tl-axis-row';
+  var pAxisLine=document.createElement('div');pAxisLine.className='tl-axis-line';
+  pAxisRow.appendChild(pAxisLine);
+  var pBottom=document.createElement('div');pBottom.className='tl-bottom';
+  pBottom.style.height=(cardH+20)+'px';
+
+  for(var idx=gs; idx<ge; idx++){
+    var e2=events[idx];
+    var x2=positions[idx]-gBase;
+
+    var topCol2=document.createElement('div');
+    topCol2.style.cssText='position:absolute;left:'+x2+'px;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+    var timeLbl2=makeTimeLabel(e2);
+    if(timeLbl2)topCol2.appendChild(timeLbl2);
+    var lu2=document.createElement('div');lu2.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol2.appendChild(lu2);
+    pTop.appendChild(topCol2);
+
+    var btmCol2=document.createElement('div');
+    btmCol2.style.cssText='position:absolute;left:'+x2+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+    var ld2=document.createElement('div');ld2.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol2.appendChild(ld2);
+    var card2=makeCardDiv(e2.desc,false,null,cardH,cardH);
+    btmCol2.appendChild(card2);
+    pBottom.appendChild(btmCol2);
+  }
+
+  pInner.appendChild(pTop);
+  pInner.appendChild(pAxisRow);
+  pInner.appendChild(pBottom);
+  td.appendChild(pInner);
+  tr.appendChild(td);
+  return {tr:tr,gWidth:gWidth};
+}
+
+function buildLocalGroupRow(gs,ge,cardH){
+  // 只用於「最後一頁縮小高度」的情境：不沿用畫面版位置估算，
+  // 改成用這個高度實際量測寬度後重新排列，避免跟原本的估算寬度對不齊導致重疊
+  var evts=events.slice(gs,ge);
+  var tmp=evts.map(function(e){return makeCardDiv(e.desc,false,null,cardH,cardH);});
+  var tlBottomEl=document.getElementById('tlBottom');
+  tmp.forEach(function(c){tlBottomEl.appendChild(c);});
+  var widths=tmp.map(function(c){return c.offsetWidth;});
+  tmp.forEach(function(c){tlBottomEl.removeChild(c);});
+
+  var PAD2=8, COL_GAP2=COL_GAP, PX_PER_YEAR2=8;
+  var localPos=[PAD2+widths[0]/2];
+  for(var i=1;i<evts.length;i++){
+    var ageGap=evts[i].sortKey-evts[i-1].sortKey;
+    var minDist=(widths[i-1]+widths[i])/2+COL_GAP2;
+    var ageDist=ageGap*PX_PER_YEAR2;
+    localPos.push(localPos[i-1]+Math.max(minDist,ageDist));
+  }
+  var gWidth=localPos[localPos.length-1]+widths[widths.length-1]/2+PAD2;
+
+  var tr=document.createElement('tr');tr.className='pp-row';
+  var td=document.createElement('td');td.className='pp-cell';
+  var pInner=document.createElement('div');
+  pInner.style.cssText='position:relative;width:'+gWidth+'px';
+  var pTop=document.createElement('div');pTop.className='tl-top';
+  var pAxisRow=document.createElement('div');pAxisRow.className='tl-axis-row';
+  var pAxisLine=document.createElement('div');pAxisLine.className='tl-axis-line';
+  pAxisRow.appendChild(pAxisLine);
+  var pBottom=document.createElement('div');pBottom.className='tl-bottom';
+  pBottom.style.height=(cardH+20)+'px';
+
+  for(var j=0;j<evts.length;j++){
+    var e3=evts[j];
+    var x3=localPos[j];
+    var topCol3=document.createElement('div');
+    topCol3.style.cssText='position:absolute;left:'+x3+'px;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+    var timeLbl3=makeTimeLabel(e3);
+    if(timeLbl3)topCol3.appendChild(timeLbl3);
+    var lu3=document.createElement('div');lu3.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol3.appendChild(lu3);
+    pTop.appendChild(topCol3);
+
+    var btmCol3=document.createElement('div');
+    btmCol3.style.cssText='position:absolute;left:'+x3+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+    var ld3=document.createElement('div');ld3.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol3.appendChild(ld3);
+    var card3=makeCardDiv(e3.desc,false,null,cardH,cardH);
+    btmCol3.appendChild(card3);
+    pBottom.appendChild(btmCol3);
+  }
+
+  pInner.appendChild(pTop);
+  pInner.appendChild(pAxisRow);
+  pInner.appendChild(pBottom);
+  td.appendChild(pInner);
+  tr.appendChild(td);
+  return {tr:tr,gWidth:gWidth};
 }
 
 function exportJSON(){
