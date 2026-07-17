@@ -238,8 +238,8 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
 
 <div class="modal-bg" id="clearModal">
   <div class="modal">
-    <h3>清除全部事件？</h3>
-    <p>這個動作無法復原。</p>
+    <h3>清除全部事件與備註？</h3>
+    <p>這個動作無法復原，學員姓名/課程名稱等資料列不會被清除。</p>
     <div class="modal-btns">
       <button onclick="closeModal()">取消</button>
       <button class="danger" onclick="clearAll()">確認清除</button>
@@ -541,7 +541,13 @@ function saveEditedEvent(){
 }
 function confirmClear(){document.getElementById('clearModal').classList.add('open');}
 function closeModal(){document.getElementById('clearModal').classList.remove('open');}
-function clearAll(){events=[];save();closeModal();render();toast('\u5df2\u6e05\u9664\u5168\u90e8');}
+function clearAll(){
+  events=[];save();
+  localStorage.setItem('lifeEventsNotesH','');
+  document.getElementById('notesText').value='';
+  document.getElementById('notesPrintView').textContent='';
+  closeModal();render();toast('\u5df2\u6e05\u9664\u5168\u90e8\u4e8b\u4ef6\u8207\u5099\u8a3b');
+}
 
 function vText(text){
   var html='',i=0;
