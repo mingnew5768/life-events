@@ -147,8 +147,8 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
 <div class="input-panel">
   <div class="row" style="margin-bottom:.4rem">
     <div class="fg">
-      <label>出生年（西元）</label>
-      <input type="number" id="birthYear" value="1980" min="1900" max="2020" onchange="onBirthChange()">
+      <label>出生年（西元，選填）</label>
+      <input type="number" id="birthYear" placeholder="不知道可留空" min="1900" max="2020" onchange="onBirthChange()">
     </div>
     <span class="hint-sm" id="birthHint" style="align-self:center"></span>
     <div class="chips" style="margin-left:8px;align-self:center">
@@ -339,7 +339,7 @@ var displayFmt=JSON.parse(localStorage.getItem('lifeEventsFmtH')||'{"age":true,"
 var notesTimer=null;
 
 function save(){localStorage.setItem('lifeEventsH',JSON.stringify(events));}
-function getBirth(){return parseInt(document.getElementById('birthYear').value)||1980;}
+function getBirth(){var v=parseInt(document.getElementById('birthYear').value);return isNaN(v)?null:v;}
 function getYearSel(){return document.getElementById(mode==='roc'?'yearSel_roc':mode==='ad'?'yearSel_ad':'yearSel_age');}
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2000);}
 function saveProfile(){localStorage.setItem('lifeEventsProfileH',JSON.stringify({name:document.getElementById('profileName').value,course:document.getElementById('profileCourse').value,date:document.getElementById('profileDate').value,facilitator:document.getElementById('profileFacilitator').value}));}
@@ -354,7 +354,7 @@ function applyTitle(){
   var t=getTitleText();
   document.getElementById('printTitle').textContent=t;
   document.title=t+'（橫式）';
-  document.querySelector('.app-title').textContent='\U0001F4CB '+t+'（橫式）';
+  document.querySelector('.app-title').textContent='\uD83D\uDCCB '+t+'（橫式）';
 }
 function onTitleChange(){
   var sel=document.getElementById('titleSel').value;
@@ -380,13 +380,20 @@ function saveNotes(){localStorage.setItem('lifeEventsNotesH',document.getElement
 function loadNotes(){document.getElementById('notesText').value=localStorage.getItem('lifeEventsNotesH')||'';}
 function toggleNotes(){var b=document.getElementById('notesBody'),i=document.getElementById('ntoggle');var o=b.classList.toggle('open');i.classList.toggle('open',o);}
 
-function onBirthChange(){var b=getBirth(),roc=b-ROC;document.getElementById('birthHint').textContent='\u6c11\u570b'+(roc>0?roc:'\u2014')+'\u5e74\u51fa\u751f';buildSelect();}
+function onBirthChange(){
+  var b=getBirth();
+  var h=document.getElementById('birthHint');
+  if(b===null){h.textContent='\u672a\u586b\u5beb\uff1a\u53ea\u80fd\u7528\u300c\u5e74\u7d00\u300d\u8f38\u5165\uff0c\u4e0d\u986f\u793a\u897f\u5143/\u6c11\u570b\u5e74';}
+  else{var roc=b-ROC;h.textContent='\u6c11\u570b'+(roc>0?roc:'\u2014')+'\u5e74\u51fa\u751f';}
+  buildSelect();
+}
 function buildSelect(){
   var birth=getBirth(),cur=new Date().getFullYear();
+  var birthForRange=(birth===null)?(cur-100):birth; // \u7121\u51fa\u751f\u5e74\u6642\uff0c\u4e0b\u62c9\u9078\u55ae\u7bc4\u570d\u7528\u5bec\u9808\u7684\u4e0a\u9650
   var sa=document.getElementById('yearSel_age'),sr=document.getElementById('yearSel_roc'),sd=document.getElementById('yearSel_ad'),se=document.getElementById('yearSel_end');
   sa.innerHTML='';for(var i=0;i<=100;i++){var o=document.createElement('option');o.value=i;o.textContent=i+' \u6b72';sa.appendChild(o);}
-  sr.innerHTML='';for(var y=cur-ROC;y>=Math.max(birth-ROC,1);y--){var o=document.createElement('option');o.value=y;o.textContent='\u6c11\u570b'+y+'\u5e74';sr.appendChild(o);}
-  sd.innerHTML='';for(var y=cur;y>=birth;y--){var o=document.createElement('option');o.value=y;o.textContent=y+' \u5e74';sd.appendChild(o);}
+  sr.innerHTML='';for(var y=cur-ROC;y>=Math.max(birthForRange-ROC,1);y--){var o=document.createElement('option');o.value=y;o.textContent='\u6c11\u570b'+y+'\u5e74';sr.appendChild(o);}
+  sd.innerHTML='';for(var y=cur;y>=birthForRange;y--){var o=document.createElement('option');o.value=y;o.textContent=y+' \u5e74';sd.appendChild(o);}
   se.innerHTML='';for(var i=0;i<=100;i++){var o=document.createElement('option');o.value=i;o.textContent=i+' \u6b72';se.appendChild(o);}
   se.value='12';
   updateHint();
@@ -396,6 +403,10 @@ function onRangeToggle(){
   document.getElementById('rangeEndWrap').style.display=on?'':'none';
 }
 function setMode(m){
+  if((m==='roc'||m==='ad')&&getBirth()===null){
+    toast('\u6b64\u8f38\u5165\u65b9\u5f0f\u9700\u8981\u5148\u586b\u5beb\u51fa\u751f\u5e74\uff0c\u6216\u6539\u7528\u300c\u5e74\u7d00\u300d\u8f38\u5165');
+    return;
+  }
   mode=m;
   document.querySelectorAll('.mode-btn').forEach(function(b,i){b.classList.toggle('active',['age','roc','ad'][i]===m);});
   document.getElementById('selLabel').textContent=m==='age'?'\u5e74\u7d00\uff08\u6b72\uff09':m==='roc'?'\u6c11\u570b\u5e7e\u5e74':'\u897f\u5143\u5e7e\u5e74';
@@ -405,6 +416,11 @@ function setMode(m){
 function updateHint(){
   var val=parseInt(getYearSel().value),birth=getBirth(),h=document.getElementById('hint');
   if(isNaN(val)){h.textContent='';return;}
+  if(birth===null){
+    if(mode==='age')h.textContent='';
+    else h.textContent='\u9700\u5148\u586b\u5beb\u51fa\u751f\u5e74\u624d\u80fd\u63db\u7b97';
+    return;
+  }
   if(mode==='roc'){var ad=val+ROC,age=ad-birth;h.textContent='= \u897f\u5143'+ad+'\u5e74'+(age>=0?' / '+age+' \u6b72':'');}
   else if(mode==='ad'){var roc=val-ROC,age=val-birth;h.textContent=(roc>0?'\u6c11\u570b'+roc+'\u5e74 / ':'')+(age>=0?age+' \u6b72':'');}
   else{var ad=birth+val,roc=ad-ROC;h.textContent='= \u897f\u5143'+ad+'\u5e74'+(roc>0?' / \u6c11\u570b'+roc+'\u5e74':'');}
@@ -440,15 +456,26 @@ function addEvent(){
   var desc=document.getElementById('descInput').value.trim();
   if(!desc){document.getElementById('descInput').focus();return;}
   var isRange=document.getElementById('rangeToggle').checked&&mode==='age';
-  var birth=getBirth(),adYear,ageNum,sortKey,ageEnd=null;
-  if(mode==='age'){ageNum=raw;adYear=birth+raw;sortKey=raw;}
-  else if(mode==='roc'){adYear=raw+ROC;ageNum=adYear-birth;sortKey=ageNum;}
-  else{adYear=raw;ageNum=adYear-birth;sortKey=ageNum;}
+  var birth=getBirth(),adYear=null,ageNum,sortKey,ageEnd=null;
+  if(mode==='age'){
+    ageNum=raw;sortKey=raw;
+    if(birth!==null)adYear=birth+raw;
+  }else if(mode==='roc'){
+    if(birth===null){toast('\u9700\u5148\u586b\u5beb\u51fa\u751f\u5e74\u624d\u80fd\u4f7f\u7528\u6c11\u570b\u5e74\u8f38\u5165');return;}
+    adYear=raw+ROC;ageNum=adYear-birth;sortKey=ageNum;
+  }else{
+    if(birth===null){toast('\u9700\u5148\u586b\u5beb\u51fa\u751f\u5e74\u624d\u80fd\u4f7f\u7528\u897f\u5143\u5e74\u8f38\u5165');return;}
+    adYear=raw;ageNum=adYear-birth;sortKey=ageNum;
+  }
   if(isRange){
     ageEnd=parseInt(document.getElementById('yearSel_end').value);
-    if(!isNaN(ageEnd)&&ageEnd<ageNum){var tmp=ageNum;ageNum=ageEnd;ageEnd=tmp;adYear=birth+ageNum;sortKey=ageNum;}
+    if(!isNaN(ageEnd)&&ageEnd<ageNum){
+      var tmp=ageNum;ageNum=ageEnd;ageEnd=tmp;sortKey=ageNum;
+      if(birth!==null)adYear=birth+ageNum;
+    }
   }
-  events.push({id:Date.now(),sortKey:sortKey,ageNum:ageNum,ageEnd:ageEnd,adYear:adYear,rocYear:adYear-ROC,desc:desc});
+  var rocYear=(adYear!==null)?(adYear-ROC):null;
+  events.push({id:Date.now(),sortKey:sortKey,ageNum:ageNum,ageEnd:ageEnd,adYear:adYear,rocYear:rocYear,desc:desc});
   events.sort(function(a,b){return a.sortKey-b.sortKey;});
   save();
   document.getElementById('descInput').value='';
@@ -483,8 +510,8 @@ function saveEditedEvent(){
     ev.ageNum=newAge;
     ev.ageEnd=(newAgeEnd!=null&&!isNaN(newAgeEnd)&&newAgeEnd>newAge)?newAgeEnd:null;
     ev.sortKey=newAge;
-    ev.adYear=birth+newAge;
-    ev.rocYear=ev.adYear-ROC;
+    if(birth!==null){ev.adYear=birth+newAge;ev.rocYear=ev.adYear-ROC;}
+    else{ev.adYear=null;ev.rocYear=null;}
   }
   ev.desc=newDesc;
   events.sort(function(a,b){return a.sortKey-b.sortKey;});
@@ -518,8 +545,8 @@ function buildTimeParts(e){
     if(e.ageEnd!=null&&e.ageEnd>e.ageNum)parts.push(e.ageNum+'\u5230'+e.ageEnd+' \u6b72');
     else parts.push(e.ageNum+' \u6b72');
   }
-  if(displayFmt.ad)parts.push('\u897f\u5143'+e.adYear+'\u5e74');
-  if(displayFmt.roc&&e.rocYear>0)parts.push('\u6c11\u570b'+e.rocYear+'\u5e74');
+  if(displayFmt.ad&&e.adYear!=null)parts.push('\u897f\u5143'+e.adYear+'\u5e74');
+  if(displayFmt.roc&&e.rocYear!=null&&e.rocYear>0)parts.push('\u6c11\u570b'+e.rocYear+'\u5e74');
   return parts;
 }
 function buildAgeLabel(e){
@@ -703,7 +730,7 @@ function openScanModal(){
   document.getElementById('scanTextInput').value='';
   document.getElementById('apiKeyInput').value=getApiKey();
   document.getElementById('workerUrlInput').value=getWorkerUrl();
-  document.getElementById('scanBirthYear').value=getBirth();
+  var _b=getBirth();document.getElementById('scanBirthYear').value=(_b!==null)?_b:'';
   setAgeMode('direct');
   setScanSource('file');
   document.getElementById('scanModal').classList.add('open');
@@ -829,6 +856,10 @@ function runScan(){
 
   var content=[];
   var birth=ageMode==='birth'?getBirth():null;
+  if(ageMode==='birth'&&birth===null){
+    st.textContent='\u26A0 \u5df2\u9078\u300c\u4ee5\u51fa\u751f\u5e74\u63db\u7b97\u300d\uff0c\u8acb\u5148\u586b\u5beb\u51fa\u751f\u5e74\uff0c\u6216\u6539\u9078\u300c\u76f4\u63a5\u4f7f\u7528\u586b\u5beb\u7684\u5e74\u9f61\u300d';
+    st.style.color='var(--dg)';return;
+  }
   var prompt=buildScanPrompt(birth);
 
   if(scanSource==='text'){
@@ -990,9 +1021,9 @@ function confirmImport(){
   var birth=getBirth();
   var baseId=Date.now();
   withAge.forEach(function(r,i){
-    var ad=birth+r.age;
+    var ad=(birth!==null)?(birth+r.age):null;
     var ae=(r.ageEnd!=null&&r.ageEnd>r.age)?r.ageEnd:null;
-    events.push({id:baseId+i,sortKey:r.age,ageNum:r.age,ageEnd:ae,adYear:ad,rocYear:ad-ROC,desc:r.desc.trim()});
+    events.push({id:baseId+i,sortKey:r.age,ageNum:r.age,ageEnd:ae,adYear:ad,rocYear:(ad!==null)?(ad-ROC):null,desc:r.desc.trim()});
   });
   events.sort(function(a,b){return a.sortKey-b.sortKey;});
   save();
