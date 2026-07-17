@@ -239,8 +239,8 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
 
 <div class="modal-bg" id="clearModal">
   <div class="modal">
-    <h3>清除全部事件與備註？</h3>
-    <p>這個動作無法復原，學員姓名/課程名稱等資料列不會被清除。</p>
+    <h3>清除全部資料？</h3>
+    <p>將清除所有事件、備註，以及學員姓名、課程名稱、填寫日期、帶領者、標題與出生年。這個動作無法復原，建議先按「備份資料」存檔。</p>
     <div class="modal-btns">
       <button onclick="closeModal()">取消</button>
       <button class="danger" onclick="clearAll()">確認清除</button>
@@ -539,7 +539,22 @@ function clearAll(){
   localStorage.setItem('lifeEventsNotesH','');
   document.getElementById('notesText').value='';
   document.getElementById('notesPrintView').textContent='';
-  closeModal();render();toast('\u5df2\u6e05\u9664\u5168\u90e8\u4e8b\u4ef6\u8207\u5099\u8a3b');
+  // 一併清除上方資料列（學員姓名/課程名稱/填寫日期/帶領者）
+  document.getElementById('profileName').value='';
+  document.getElementById('profileCourse').value='';
+  document.getElementById('profileDate').value='';
+  document.getElementById('profileFacilitator').value='';
+  localStorage.removeItem('lifeEventsProfileH');
+  // 標題還原為預設
+  document.getElementById('titleSel').value='\u91cd\u5927\u751f\u547d\u53f2';
+  document.getElementById('titleCustom').value='';
+  document.getElementById('titleCustom').style.display='none';
+  localStorage.removeItem('lifeEventsTitleH');
+  onTitleChange();
+  // 出生年清空
+  document.getElementById('birthYear').value='';
+  onBirthChange();
+  closeModal();render();toast('\u5df2\u6e05\u9664\u5168\u90e8\u8cc7\u6599');
 }
 
 function vText(text){
@@ -995,7 +1010,32 @@ function exportJSON(){
 }
 function importJSON(){
   var input=document.createElement('input');input.type='file';input.accept='.json';
-  input.onchange=function(){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var parsed=JSON.parse(ev.target.result);var incoming=Array.isArray(parsed)?parsed:(parsed.events||[]);if(events.length>0){var ok=confirm('\u76ee\u524d\u5df2\u6709 '+events.length+' \u7b46\u4e8b\u4ef6\u3002\u532f\u5165\u5099\u4efd\u6703\u5b8c\u5168\u53d6\u4ee3\u73fe\u6709\u8cc7\u6599\uff08\u4e0d\u662f\u5408\u4f75\uff09\uff0c\u78ba\u5b9a\u8981\u7e7c\u7e8c\u55ce\uff1f\u5efa\u8b70\u5148\u6309\u300c\u5099\u4efd\u8cc7\u6599\u300d\u5c07\u73fe\u6709\u5167\u5bb9\u5b58\u4e0b\u4f86\u3002');if(!ok)return;}if(Array.isArray(parsed)){events=parsed;}else{events=incoming;if(parsed.profile){localStorage.setItem('lifeEventsProfileH',JSON.stringify(parsed.profile));loadProfile();}if(parsed.notes!==undefined){localStorage.setItem('lifeEventsNotesH',parsed.notes);loadNotes();}}events.sort(function(a,b){return a.sortKey-b.sortKey;});save();render();toast('\u2713 \u532f\u5165 '+events.length+' \u7b46\u4e8b\u4ef6');}catch(e){toast('\u683c\u5f0f\u932f\u8aa4');}};reader.readAsText(file);};input.click();
+  input.onchange=function(){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var parsed=JSON.parse(ev.target.result);var incoming=Array.isArray(parsed)?parsed:(parsed.events||[]);if(events.length>0){var ok=confirm('\u76ee\u524d\u5df2\u6709 '+events.length+' \u7b46\u4e8b\u4ef6\u3002\u532f\u5165\u5099\u4efd\u6703\u5b8c\u5168\u53d6\u4ee3\u73fe\u6709\u8cc7\u6599\uff08\u4e0d\u662f\u5408\u4f75\uff09\uff0c\u78ba\u5b9a\u8981\u7e7c\u7e8c\u55ce\uff1f\u5efa\u8b70\u5148\u6309\u300c\u5099\u4efd\u8cc7\u6599\u300d\u5c07\u73fe\u6709\u5167\u5bb9\u5b58\u4e0b\u4f86\u3002');if(!ok)return;}
+  if(Array.isArray(parsed)){
+    // 舊格式備份（只有事件陣列）：資料列與備註一併清空，讓畫面完全等於備份內容
+    events=parsed;
+    localStorage.removeItem('lifeEventsProfileH');
+    document.getElementById('profileName').value='';
+    document.getElementById('profileCourse').value='';
+    document.getElementById('profileDate').value='';
+    document.getElementById('profileFacilitator').value='';
+    localStorage.setItem('lifeEventsNotesH','');
+    document.getElementById('notesText').value='';
+  }else{
+    events=incoming;
+    // 資料列：以備份內容完整覆蓋，備份裡空的欄位畫面上也要變空，不保留舊值
+    var p=parsed.profile||{};
+    document.getElementById('profileName').value=p.name||'';
+    document.getElementById('profileCourse').value=p.course||'';
+    document.getElementById('profileDate').value=p.date||'';
+    document.getElementById('profileFacilitator').value=p.facilitator||'';
+    localStorage.setItem('lifeEventsProfileH',JSON.stringify({name:p.name||'',course:p.course||'',date:p.date||'',facilitator:p.facilitator||''}));
+    // 備註：同樣完整覆蓋（備份沒有備註就清空）
+    var nv=(parsed.notes!==undefined&&parsed.notes!==null)?parsed.notes:'';
+    localStorage.setItem('lifeEventsNotesH',nv);
+    document.getElementById('notesText').value=nv;
+  }
+  events.sort(function(a,b){return a.sortKey-b.sortKey;});save();render();toast('\u2713 \u532f\u5165 '+events.length+' \u7b46\u4e8b\u4ef6');}catch(e){toast('\u683c\u5f0f\u932f\u8aa4');}};reader.readAsText(file);};input.click();
 }
 
 document.querySelector('#ddMenu input[value=age]').checked=!!displayFmt.age;
