@@ -400,7 +400,13 @@ function syncNotesForPrint(){
   if(val.trim())panel.classList.remove('empty-notes');
   else panel.classList.add('empty-notes');
 }
-window.addEventListener('beforeprint',syncNotesForPrint);
+window.addEventListener('beforeprint',function(){
+  syncNotesForPrint();
+  render(); // 列印字級與螢幕不同，需在列印樣式生效後重新計算卡片寬度與位置，避免重疊
+});
+window.addEventListener('afterprint',function(){
+  render(); // 列印結束後，依一般畫面字級重新排版
+});
 
 function onBirthChange(){
   var b=getBirth();
