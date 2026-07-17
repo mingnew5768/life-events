@@ -605,17 +605,13 @@ function render(){
     cardEls.push(card);
   });
 
-  // 量測每張卡片實際寬度（含換欄後變寬）
+  // 量測每張卡片實際寬度：直接把卡片本人（不是複製品）暫時放進最終會顯示的
+  // 容器裡自然排列量測，確保跟最後渲染的環境完全一致，避免長文字換欄卡片
+  // 量到的寬度跟實際顯示不一致，造成下一張卡片被排太近而重疊。
   var cardWidths=[];
-  var measureWrap=document.createElement('div');
-  measureWrap.style.cssText='position:absolute;visibility:hidden;left:0;top:0';
-  document.body.appendChild(measureWrap);
-  cardEls.forEach(function(card){
-    var clone=card.cloneNode(true);
-    measureWrap.appendChild(clone);
-    cardWidths.push(clone.offsetWidth);
-  });
-  document.body.removeChild(measureWrap);
+  cardEls.forEach(function(card){tlBottom.appendChild(card);});
+  cardEls.forEach(function(card){cardWidths.push(card.offsetWidth);});
+  tlBottom.innerHTML=''; // 量完清空，準備正式定位
 
   // 依年齡比例排列：年齡差距越大，間距越寬；同時保證卡片不重疊
   var PX_PER_YEAR=8;
@@ -694,7 +690,7 @@ function exportJSON(){
 }
 function importJSON(){
   var input=document.createElement('input');input.type='file';input.accept='.json';
-  input.onchange=function(){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var parsed=JSON.parse(ev.target.result);if(Array.isArray(parsed)){events=parsed;}else{events=parsed.events||[];if(parsed.profile){localStorage.setItem('lifeEventsProfileH',JSON.stringify(parsed.profile));loadProfile();}if(parsed.notes!==undefined){localStorage.setItem('lifeEventsNotesH',parsed.notes);loadNotes();}}events.sort(function(a,b){return a.sortKey-b.sortKey;});save();render();toast('\u2713 \u532f\u5165 '+events.length+' \u7b46\u4e8b\u4ef6');}catch(e){toast('\u683c\u5f0f\u932f\u8aa4');}};reader.readAsText(file);};input.click();
+  input.onchange=function(){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var parsed=JSON.parse(ev.target.result);var incoming=Array.isArray(parsed)?parsed:(parsed.events||[]);if(events.length>0){var ok=confirm('\u76ee\u524d\u5df2\u6709 '+events.length+' \u7b46\u4e8b\u4ef6\u3002\u532f\u5165\u5099\u4efd\u6703\u5b8c\u5168\u53d6\u4ee3\u73fe\u6709\u8cc7\u6599\uff08\u4e0d\u662f\u5408\u4f75\uff09\uff0c\u78ba\u5b9a\u8981\u7e7c\u7e8c\u55ce\uff1f\u5efa\u8b70\u5148\u6309\u300c\u5099\u4efd\u8cc7\u6599\u300d\u5c07\u73fe\u6709\u5167\u5bb9\u5b58\u4e0b\u4f86\u3002');if(!ok)return;}if(Array.isArray(parsed)){events=parsed;}else{events=incoming;if(parsed.profile){localStorage.setItem('lifeEventsProfileH',JSON.stringify(parsed.profile));loadProfile();}if(parsed.notes!==undefined){localStorage.setItem('lifeEventsNotesH',parsed.notes);loadNotes();}}events.sort(function(a,b){return a.sortKey-b.sortKey;});save();render();toast('\u2713 \u532f\u5165 '+events.length+' \u7b46\u4e8b\u4ef6');}catch(e){toast('\u683c\u5f0f\u932f\u8aa4');}};reader.readAsText(file);};input.click();
 }
 
 document.querySelector('#ddMenu input[value=age]').checked=!!displayFmt.age;
