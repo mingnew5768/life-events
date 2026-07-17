@@ -973,7 +973,10 @@ function downloadPDF(){
   }
 
   var profile=JSON.parse(localStorage.getItem('lifeEventsProfileH')||'{}');
-  var filename=(profile.name?'\u91cd\u5927\u4e8b\u4ef6\u8868_'+profile.name:'\u91cd\u5927\u4e8b\u4ef6\u8868')+'.pdf';
+  var title=getTitleText();
+  var fnBase=title;
+  if(profile.name&&title.indexOf(profile.name)===-1)fnBase=title+'_'+profile.name;
+  var filename=fnBase.replace(/[\\/:*?"<>|]/g,'')+'.pdf';
   var pdf=new jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   var MAXW=285,MAXH=200; // A4\u6a6b\u5411\u6263\u9664\u908a\u8ddd
 
@@ -1005,8 +1008,10 @@ function exportJSON(){
   var profile=JSON.parse(localStorage.getItem('lifeEventsProfileH')||'{}');
   var notes=localStorage.getItem('lifeEventsNotesH')||'';
   var json=JSON.stringify({profile:profile,notes:notes,events:events},null,2);
+  var _t=getTitleText();var _fb=_t;
+  if(profile.name&&_t.indexOf(profile.name)===-1)_fb=_t+'_'+profile.name;
   var a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
-  a.download=(profile.name?'\u91cd\u5927\u4e8b\u4ef6\u8868_'+profile.name:'\u91cd\u5927\u4e8b\u4ef6\u8868\u5099\u4efd')+'.json';a.click();toast('\u2713 \u5099\u4efd\u5df2\u4e0b\u8f09');
+  a.download=_fb.replace(/[\\/:*?"<>|]/g,'')+'.json';a.click();toast('\u2713 \u5099\u4efd\u5df2\u4e0b\u8f09');
 }
 function importJSON(){
   var input=document.createElement('input');input.type='file';input.accept='.json';
