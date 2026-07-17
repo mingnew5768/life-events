@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>重大事件表（橫式）</title>
 <style>
+@page { size: A4 landscape; margin: 5mm 6mm; }
 :root{--bg:#f8f7f4;--sf:#fff;--sf2:#f2f1ee;--bd:rgba(0,0,0,.1);--bds:rgba(0,0,0,.18);--tx:#1a1a18;--tx2:#52514e;--tx3:#898781;--ac:#2a78d6;--acbg:#e8f1fb;--dg:#e24b4a;--dgbg:#fdeaea;--rd:8px}
 @media(prefers-color-scheme:dark){:root{--bg:#1a1a18;--sf:#242422;--sf2:#2c2c2a;--bd:rgba(255,255,255,.1);--bds:rgba(255,255,255,.18);--tx:#f0efe8;--tx2:#c3c2b7;--tx3:#898781;--ac:#3987e5;--acbg:#1a2d4a;--dg:#e66767;--dgbg:#3a1e1e}}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -118,16 +119,17 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
      還是另起新的一頁（塞不下時），避免版面被壓縮 */
   .notes-panel { display:none !important; }
   .print-only:not(#tlPrintPages) { display:block !important; font-size:19px !important; line-height:1.8 !important; }
-
-  @page { size: A4 landscape; margin: 5mm 6mm; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="topbar">
   <span class="app-title">📋 重大事件表（橫式）</span>
   <button class="tb-btn" onclick="openScanModal()">📷 辨識匯入</button>
-  <button class="tb-btn" onclick="window.print()">🖨 列印 / 匯出PDF</button>
+  <button class="tb-btn" onclick="downloadPDF()">⬇ 下載PDF（橫向）</button>
+  <button class="tb-btn" onclick="window.print()">🖨 列印</button>
   <button class="tb-btn" onclick="exportJSON()">💾 備份資料</button>
   <button class="tb-btn" onclick="importJSON()">📂 匯入備份</button>
   <button class="tb-btn danger" onclick="confirmClear()">🗑 清除全部</button>
@@ -896,6 +898,92 @@ function buildLocalGroupRow(gs,ge,cardH){
   tr.appendChild(td);
   var rowH=maxLabelH+18+(actualCardH+20);
   return {tr:tr,gWidth:gWidth,rowH:rowH};
+}
+
+function downloadPDF(){
+  if(typeof htmlToImage==='undefined'||typeof jspdf==='undefined'){
+    toast('PDF \u5143\u4ef6\u8f09\u5165\u5931\u6557\uff0c\u8acb\u78ba\u8a8d\u7db2\u8def\u5f8c\u91cd\u65b0\u6574\u7406\u9801\u9762');return;
+  }
+  if(events.length===0){toast('\u5c1a\u7121\u4e8b\u4ef6\u8cc7\u6599');return;}
+  render();
+  toast('\u23f3 \u6b63\u5728\u7522\u751f PDF...');
+
+  var LIGHT={'--bg':'#fff','--sf':'#fff','--sf2':'#f2f1ee','--bd':'rgba(0,0,0,.25)','--bds':'rgba(0,0,0,.35)','--tx':'#000','--tx2':'#222','--tx3':'#555','--ac':'#2a78d6','--acbg':'#e8f1fb','--dg':'#e24b4a','--dgbg':'#fdeaea','--rd':'8px'};
+
+  var holder=document.createElement('div');
+  holder.style.cssText='position:fixed;top:0;left:-30000px;z-index:-1';
+  document.body.appendChild(holder);
+
+  var rows=document.querySelectorAll('#tlPrintPages .pp-row');
+  var pages=[];
+  for(var i=0;i<rows.length;i++){
+    var pageDiv=document.createElement('div');
+    pageDiv.style.cssText='width:1050px;background:#fff;color:#000;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',\'Microsoft JhengHei\',sans-serif;padding:2px';
+    for(var k in LIGHT)pageDiv.style.setProperty(k,LIGHT[k]);
+
+    if(i===0){
+      var t=document.getElementById('printTitle');
+      var tc=t.cloneNode(true);
+      tc.style.cssText='display:block;text-align:center;font-size:26px;font-weight:800;letter-spacing:.1em;margin-bottom:14px;width:100%;color:#000';
+      pageDiv.appendChild(tc);
+
+      var pb=document.querySelector('.profile-bar');
+      var pbc=pb.cloneNode(true);
+      var nps=pbc.querySelectorAll('.no-print');
+      for(var n=nps.length-1;n>=0;n--)nps[n].parentNode.removeChild(nps[n]);
+      var origInputs=pb.querySelectorAll('input');
+      var cloneInputs=pbc.querySelectorAll('input');
+      for(var ii=0;ii<cloneInputs.length;ii++){
+        cloneInputs[ii].setAttribute('value',origInputs[ii]?origInputs[ii].value:'');
+        cloneInputs[ii].removeAttribute('id');
+        cloneInputs[ii].style.cssText+=';font-size:19px;font-weight:700;color:#000;border:none;background:transparent;padding:0;font-family:inherit';
+      }
+      var cloneLabels=pbc.querySelectorAll('label');
+      for(var ll=0;ll<cloneLabels.length;ll++){cloneLabels[ll].style.cssText+=';font-size:15px;color:#555;white-space:nowrap';}
+      pbc.style.cssText+=';border:1.5px solid #222;background:#f7f7f7;border-radius:8px;margin-bottom:8px;padding:.6rem 1rem';
+      pageDiv.appendChild(pbc);
+    }
+
+    var cell=rows[i].querySelector('.pp-cell');
+    for(var c=0;c<cell.childNodes.length;c++){
+      pageDiv.appendChild(cell.childNodes[c].cloneNode(true));
+    }
+    var axes=pageDiv.querySelectorAll('.tl-axis-line');
+    for(var a=0;a<axes.length;a++)axes[a].style.background='#333';
+    var axr=pageDiv.querySelectorAll('.tl-axis-row');
+    for(var a2=0;a2<axr.length;a2++)axr[a2].style.height='18px';
+
+    holder.appendChild(pageDiv);
+    pages.push(pageDiv);
+  }
+
+  var profile=JSON.parse(localStorage.getItem('lifeEventsProfileH')||'{}');
+  var filename=(profile.name?'\u91cd\u5927\u4e8b\u4ef6\u8868_'+profile.name:'\u91cd\u5927\u4e8b\u4ef6\u8868')+'.pdf';
+  var pdf=new jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  var MAXW=285,MAXH=200; // A4\u6a6b\u5411\u6263\u9664\u908a\u8ddd
+
+  var chain=Promise.resolve();
+  pages.forEach(function(pg,pi){
+    chain=chain.then(function(){
+      return htmlToImage.toPng(pg,{pixelRatio:2,backgroundColor:'#ffffff'}).then(function(dataUrl){
+        var w=pg.offsetWidth,h=pg.offsetHeight;
+        var wmm=MAXW,hmm=h/w*MAXW;
+        if(hmm>MAXH){hmm=MAXH;wmm=w/h*MAXH;}
+        if(pi>0)pdf.addPage('a4','landscape');
+        pdf.addImage(dataUrl,'PNG',6,5,wmm,hmm);
+      });
+    });
+  });
+
+  chain.then(function(){
+    pdf.save(filename);
+    document.body.removeChild(holder);
+    toast('\u2713 PDF \u5df2\u4e0b\u8f09\uff08\u6a6b\u5411\uff09');
+  }).catch(function(err){
+    if(holder.parentNode)document.body.removeChild(holder);
+    toast('PDF \u7522\u751f\u5931\u6557\uff1a'+(err&&err.message?err.message:'\u672a\u77e5\u932f\u8aa4'));
+    console.error(err);
+  });
 }
 
 function exportJSON(){
