@@ -85,8 +85,8 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     padding:.6rem 1rem !important;
     page-break-after:avoid;
   }
-  .pf label { color:#555 !important; font-size:13px !important; }
-  .pf input { color:#000 !important; font-weight:700 !important; font-size:16px !important; }
+  .pf label { color:#555 !important; font-size:15px !important; }
+  .pf input { color:#000 !important; font-weight:700 !important; font-size:19px !important; }
   .tl-outer {
     overflow:visible !important;
     border:none !important;
@@ -94,10 +94,14 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     margin-top:0 !important;
     background:#fff !important;
   }
+  .tl-inner { display:none !important; } /* 螢幕用的連續版面，列印時隱藏 */
+  #tlPrintPages { display:table !important; border-collapse:collapse; width:auto; }
+  #tlPrintPages .pp-row:not(:first-child) { break-before:page !important; page-break-before:always !important; }
+  #tlPrintPages .pp-cell { display:table-cell; padding:0; vertical-align:top; }
   .print-title {
     display:block !important;
     text-align:center;
-    font-size:22px;
+    font-size:26px;
     font-weight:800;
     letter-spacing:.1em;
     margin-bottom:14px;
@@ -113,11 +117,11 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   .notes-panel { border:1.5px solid #222 !important; background:#fff !important; margin-top:14px; page-break-inside:avoid; }
   .notes-panel.empty-notes { display:none !important; }
   .notes-header .ntoggle { display:none !important; }
-  .notes-header span { font-size:14px !important; }
+  .notes-header span { font-size:16px !important; }
   .notes-body { display:block !important; }
   .notes-body textarea { display:none !important; }
   .notes-saved { display:none !important; }
-  .print-only { display:block !important; font-size:16px !important; line-height:1.7 !important; }
+  .print-only:not(#tlPrintPages) { display:block !important; font-size:19px !important; line-height:1.8 !important; }
 
   @page { size: A4 landscape; margin: 5mm 6mm; }
 }
@@ -146,13 +150,13 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     <input type="text" id="titleCustom" placeholder="自訂標題" oninput="onTitleCustomInput()" style="display:none;width:120px">
   </div>
   <div class="psep no-print"></div>
-  <div class="pf"><label>學員姓名</label><input type="text" id="profileName" placeholder="請輸入姓名" oninput="saveProfile()"></div>
+  <div class="pf"><label>學員姓名</label><input type="text" id="profileName" placeholder="請輸入姓名" oninput="saveProfile()" style="width:100px"></div>
   <div class="psep"></div>
   <div class="pf" style="flex:1;min-width:180px"><label>課程名稱</label><input type="text" id="profileCourse" placeholder="課程名稱" oninput="saveProfile()" style="width:100%"></div>
   <div class="psep"></div>
-  <div class="pf"><label>填寫日期</label><input type="text" id="profileDate" placeholder="YYYY/MM/DD" oninput="saveProfile()"></div>
+  <div class="pf"><label>填寫日期</label><input type="text" id="profileDate" placeholder="YYYY/MM/DD" oninput="saveProfile()" style="width:150px"></div>
   <div class="psep"></div>
-  <div class="pf"><label>帶領者</label><input type="text" id="profileFacilitator" placeholder="帶領者" oninput="saveProfile()"></div>
+  <div class="pf"><label>帶領者</label><input type="text" id="profileFacilitator" placeholder="帶領者" oninput="saveProfile()" style="width:160px"></div>
 </div>
 
 <div class="input-panel">
@@ -220,6 +224,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     <div class="tl-axis-row"><div class="tl-axis-line"></div></div>
     <div class="tl-bottom" id="tlBottom"></div>
   </div>
+  <table id="tlPrintPages" class="print-only" style="display:none;border-collapse:collapse;width:100%"></table>
 </div>
 
 <div class="notes-panel" id="notesPanel">
@@ -582,7 +587,50 @@ function buildAgeLabel(e){
   return e.ageNum+' \u6b72';
 }
 
-var MAX_CARD_H=420; // 卡片最高（超過自動換欄）
+var MAX_CARD_H=460; // 卡片最高（超過自動換欄）；依 A4 橫向實際可用高度調整，盡量把直向空間用滿
+var PRINT_PAGE_W=1050; // A4橫向(297mm)扣除左右margin各6mm，理論可印寬度約1077px，抓1050px留安全邊界
+var PRINT_PAGE_H=750; // A4橫向(210mm)扣除上下margin各5mm，理論可印高度約756px，抓750px留安全邊界
+// 標題(約55px)+學員資料列(約63px)+時間軸上方(64px)+軸線(18px)+緩衝(20px)，
+// 剩下的高度盡量給卡片用，讓短文字的卡片也撐到接近可用高度，不要下方留一大片空白
+var PRINT_CARD_TARGET_H=Math.max(300, PRINT_PAGE_H-55-63-64-18-20);
+
+function makeCardDiv(desc, interactive, eventId, minH, maxH){
+  var mh=maxH||MAX_CARD_H;
+  var card=document.createElement('div');
+  card.className='ev-print-card';
+  card.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;border:.5px solid var(--bd);border-radius:var(--rd);background:var(--sf);padding:14px 11px;max-height:'+mh+'px;min-height:'+(minH||130)+'px;position:relative;transition:border-color .12s;line-height:1.7;display:inline-block';
+  var content=document.createElement('div');
+  content.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;max-height:'+(mh-28)+'px';
+  content.innerHTML='<span style="font-size:22px;color:var(--tx)">'+vText(desc)+'</span>';
+  card.appendChild(content);
+  if(interactive){
+    card.onmouseenter=function(){this.querySelectorAll('.card-btn').forEach(function(b){b.style.display='block';});this.style.borderColor='var(--bds)';};
+    card.onmouseleave=function(){this.querySelectorAll('.card-btn').forEach(function(b){b.style.display='none';});this.style.borderColor='var(--bd)';};
+    var eb=document.createElement('button');
+    eb.className='card-btn del-btn';
+    eb.style.cssText='position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
+    eb.textContent='\u270E';eb.title='\u7de8\u8f2f';
+    eb.onclick=(function(id){return function(ev){ev.stopPropagation();editEvent(id);};})(eventId);
+    card.appendChild(eb);
+    var db=document.createElement('button');
+    db.className='card-btn del-btn';
+    db.style.cssText='position:absolute;top:4px;left:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
+    db.textContent='\u2715';db.title='\u522a\u9664';
+    db.onclick=(function(id){return function(ev){ev.stopPropagation();delEvent(id);};})(eventId);
+    card.appendChild(db);
+  }
+  return card;
+}
+
+function makeTimeLabel(e){
+  var parts=buildTimeParts(e);
+  if(!parts.length)return null;
+  var timeLbl=document.createElement('div');
+  timeLbl.className='time-label-print';
+  timeLbl.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;font-size:17px;font-weight:700;color:var(--tx2);line-height:1.5;margin-bottom:4px;white-space:nowrap';
+  timeLbl.innerHTML=vText(parts.join('\u3000'));
+  return timeLbl;
+}
 
 function render(){
   var has=events.length>0;
@@ -593,29 +641,15 @@ function render(){
   var PAD=8;
   var tlTop=document.getElementById('tlTop');
   var tlBottom=document.getElementById('tlBottom');
-  tlTop.innerHTML=''; tlBottom.innerHTML='';
+  var tlPrintPages=document.getElementById('tlPrintPages');
+  tlTop.innerHTML=''; tlBottom.innerHTML=''; tlPrintPages.innerHTML='';
 
-  // 建立所有卡片（可變寬度：長文字換多欄變寬）
-  var cardEls=[];
-  events.forEach(function(e){
-    var card=document.createElement('div');
-    card.className='ev-print-card';
-    card.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;border:.5px solid var(--bd);border-radius:var(--rd);background:var(--sf);padding:14px 11px;max-height:'+MAX_CARD_H+'px;min-height:130px;position:relative;transition:border-color .12s;line-height:1.7;display:inline-block';
-    var content=document.createElement('div');
-    content.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;max-height:'+(MAX_CARD_H-28)+'px';
-    content.innerHTML=
-      '<span style="font-size:19px;color:var(--tx)">'+vText(e.desc)+'</span>';
-    card.appendChild(content);
-    cardEls.push(card);
-  });
-
-  // 量測每張卡片實際寬度：直接把卡片本人（不是複製品）暫時放進最終會顯示的
-  // 容器裡自然排列量測，確保跟最後渲染的環境完全一致，避免長文字換欄卡片
-  // 量到的寬度跟實際顯示不一致，造成下一張卡片被排太近而重疊。
-  var cardWidths=[];
-  cardEls.forEach(function(card){tlBottom.appendChild(card);});
-  cardEls.forEach(function(card){cardWidths.push(card.offsetWidth);});
-  tlBottom.innerHTML=''; // 量完清空，準備正式定位
+  // 量測每張卡片實際寬度：用一組臨時卡片放進最終容器量測，
+  // 確保跟實際顯示的環境完全一致，避免長文字換欄卡片寬度算錯導致重疊。
+  var measureEls=events.map(function(e){return makeCardDiv(e.desc,false,null);});
+  measureEls.forEach(function(c){tlBottom.appendChild(c);});
+  var cardWidths=measureEls.map(function(c){return c.offsetWidth;});
+  tlBottom.innerHTML='';
 
   // 依年齡比例排列：年齡差距越大，間距越寬；同時保證卡片不重疊
   var PX_PER_YEAR=8;
@@ -623,66 +657,93 @@ function render(){
   positions.push(PAD+cardWidths[0]/2);
   for(var pi=1;pi<events.length;pi++){
     var ageGap=events[pi].sortKey-events[pi-1].sortKey;
-    var minDist=(cardWidths[pi-1]+cardWidths[pi])/2+COL_GAP; // 不重疊的最小中心距
+    var minDist=(cardWidths[pi-1]+cardWidths[pi])/2+COL_GAP;
     var ageDist=ageGap*PX_PER_YEAR;
     positions.push(positions[pi-1]+Math.max(minDist,ageDist));
   }
   var totalW=positions[positions.length-1]+cardWidths[cardWidths.length-1]/2+PAD;
+
+  // ===== 畫面版：單一連續橫向時間軸（可橫向捲動編輯） =====
   document.getElementById('tlInner').style.width=totalW+'px';
-
   var maxCardH=140;
-
   events.forEach(function(e,idx){
     var x=positions[idx];
-
-    // 上方時間標籤（直式）
     var topCol=document.createElement('div');
     topCol.style.cssText='position:absolute;left:'+x+'px;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
-    var parts=buildTimeParts(e);
-    if(parts.length){
-      var timeLbl=document.createElement('div');
-      timeLbl.className='time-label-print';
-      timeLbl.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;font-size:14px;font-weight:700;color:var(--tx2);line-height:1.5;margin-bottom:4px;white-space:nowrap';
-      timeLbl.innerHTML=vText(parts.join('\u3000'));
-      topCol.appendChild(timeLbl);
-    }
+    var timeLbl=makeTimeLabel(e);
+    if(timeLbl)topCol.appendChild(timeLbl);
     var lu=document.createElement('div');lu.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol.appendChild(lu);
     tlTop.appendChild(topCol);
 
-    // 下方事件欄（與上方同一個中心 x）
     var btmCol=document.createElement('div');
     btmCol.style.cssText='position:absolute;left:'+x+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
     var ld=document.createElement('div');ld.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol.appendChild(ld);
-
-    var card=cardEls[idx];
-    card.onmouseenter=function(){this.querySelectorAll('.card-btn').forEach(function(b){b.style.display='block';});this.style.borderColor='var(--bds)';};
-    card.onmouseleave=function(){this.querySelectorAll('.card-btn').forEach(function(b){b.style.display='none';});this.style.borderColor='var(--bd)';};
-
-    // 編輯按鈕
-    var eb=document.createElement('button');
-    eb.className='card-btn del-btn';
-    eb.style.cssText='position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
-    eb.textContent='\u270E';
-    eb.title='\u7de8\u8f2f';
-    eb.onclick=(function(id){return function(ev){ev.stopPropagation();editEvent(id);};})(e.id);
-    card.appendChild(eb);
-
-    var db=document.createElement('button');
-    db.className='card-btn del-btn';
-    db.style.cssText='position:absolute;top:4px;left:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
-    db.textContent='\u2715';
-    db.title='\u522a\u9664';
-    db.onclick=(function(id){return function(ev){ev.stopPropagation();delEvent(id);};})(e.id);
-    card.appendChild(db);
-
+    var card=makeCardDiv(e.desc,true,e.id);
     btmCol.appendChild(card);
     tlBottom.appendChild(btmCol);
-
     var h=card.offsetHeight;
     if(h>maxCardH)maxCardH=h;
   });
+  tlBottom.style.height=(maxCardH+20)+'px';
 
-  document.getElementById('tlBottom').style.height=(maxCardH+20)+'px';
+  // ===== 列印版：依印刷頁寬分組，每組各自一頁（用 table-row 才能正確分頁，
+  // inline-block／flex／grid 都無法讓瀏覽器正確分頁，經測試確認） =====
+  var breakStart=[0];
+  var groupBase=positions[0]-cardWidths[0]/2;
+  for(var bi=1;bi<events.length;bi++){
+    var right=positions[bi]+cardWidths[bi]/2;
+    if(right-groupBase+PAD>PRINT_PAGE_W){
+      breakStart.push(bi);
+      groupBase=positions[bi]-cardWidths[bi]/2;
+    }
+  }
+  breakStart.push(events.length);
+
+  for(var g=0; g<breakStart.length-1; g++){
+    var gs=breakStart[g], ge=breakStart[g+1];
+    var gBase=positions[gs]-cardWidths[gs]/2-PAD;
+    var gWidth=(positions[ge-1]+cardWidths[ge-1]/2)-gBase+PAD;
+
+    var tr=document.createElement('tr');
+    tr.className='pp-row';
+    var td=document.createElement('td');
+    td.className='pp-cell';
+    var pInner=document.createElement('div');
+    pInner.style.cssText='position:relative;width:'+gWidth+'px';
+
+    var pTop=document.createElement('div');pTop.className='tl-top';
+    var pAxisRow=document.createElement('div');pAxisRow.className='tl-axis-row';
+    var pAxisLine=document.createElement('div');pAxisLine.className='tl-axis-line';
+    pAxisRow.appendChild(pAxisLine);
+    var pBottom=document.createElement('div');pBottom.className='tl-bottom';
+    pBottom.style.height=(PRINT_CARD_TARGET_H+20)+'px';
+
+    for(var idx=gs; idx<ge; idx++){
+      var e2=events[idx];
+      var x2=positions[idx]-gBase;
+
+      var topCol2=document.createElement('div');
+      topCol2.style.cssText='position:absolute;left:'+x2+'px;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+      var timeLbl2=makeTimeLabel(e2);
+      if(timeLbl2)topCol2.appendChild(timeLbl2);
+      var lu2=document.createElement('div');lu2.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol2.appendChild(lu2);
+      pTop.appendChild(topCol2);
+
+      var btmCol2=document.createElement('div');
+      btmCol2.style.cssText='position:absolute;left:'+x2+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
+      var ld2=document.createElement('div');ld2.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol2.appendChild(ld2);
+      var card2=makeCardDiv(e2.desc,false,null,PRINT_CARD_TARGET_H,PRINT_CARD_TARGET_H);
+      btmCol2.appendChild(card2);
+      pBottom.appendChild(btmCol2);
+    }
+
+    pInner.appendChild(pTop);
+    pInner.appendChild(pAxisRow);
+    pInner.appendChild(pBottom);
+    td.appendChild(pInner);
+    tr.appendChild(td);
+    tlPrintPages.appendChild(tr);
+  }
 }
 
 function exportJSON(){
