@@ -76,7 +76,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
 @media print {
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; color:#000 !important; }
   body { background:#fff !important; }
-  .topbar, .input-panel, .action-row, .notes-panel { display:none !important; }
+  .topbar, .input-panel, .action-row, .no-print { display:none !important; }
   .wrap { padding:0 !important; }
   .profile-bar {
     border:1.5px solid #222 !important;
@@ -108,6 +108,16 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   .tl-axis-row { height:18px !important; }
   .tl-axis-line { background:#333 !important; }
   .ev-print-card { border:1px solid #999 !important; background:#fff !important; }
+
+  /* 備註：列印時強制展開，改用純文字鏡像顯示，內容為空時整區不印出 */
+  .notes-panel { border:1.5px solid #222 !important; background:#fff !important; margin-top:14px; page-break-inside:avoid; }
+  .notes-panel.empty-notes { display:none !important; }
+  .notes-header .ntoggle { display:none !important; }
+  .notes-body { display:block !important; }
+  .notes-body textarea { display:none !important; }
+  .notes-saved { display:none !important; }
+  .print-only { display:block !important; }
+
   @page { size: A4 landscape; margin: 5mm 6mm; }
 }
 </style>
@@ -124,7 +134,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
 <div class="wrap">
 <div class="print-title" id="printTitle" style="display:none">重大事件史</div>
 <div class="profile-bar">
-  <div class="pf">
+  <div class="pf no-print">
     <label>標題</label>
     <select id="titleSel" onchange="onTitleChange()" style="height:30px;font-size:13px;border:none;background:transparent;color:var(--tx);font-weight:600;cursor:pointer;font-family:inherit">
       <option value="重大生命史">重大生命史</option>
@@ -134,10 +144,10 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     </select>
     <input type="text" id="titleCustom" placeholder="自訂標題" oninput="onTitleCustomInput()" style="display:none;width:120px">
   </div>
-  <div class="psep"></div>
+  <div class="psep no-print"></div>
   <div class="pf"><label>學員姓名</label><input type="text" id="profileName" placeholder="請輸入姓名" oninput="saveProfile()"></div>
   <div class="psep"></div>
-  <div class="pf"><label>課程名稱</label><input type="text" id="profileCourse" placeholder="課程名稱" oninput="saveProfile()"></div>
+  <div class="pf" style="flex:1;min-width:180px"><label>課程名稱</label><input type="text" id="profileCourse" placeholder="課程名稱" oninput="saveProfile()" style="width:100%"></div>
   <div class="psep"></div>
   <div class="pf"><label>填寫日期</label><input type="text" id="profileDate" placeholder="YYYY/MM/DD" oninput="saveProfile()"></div>
   <div class="psep"></div>
@@ -211,13 +221,14 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   </div>
 </div>
 
-<div class="notes-panel">
+<div class="notes-panel" id="notesPanel">
   <div class="notes-header" onclick="toggleNotes()">
     <span>備註</span><span class="ntoggle" id="ntoggle">▼</span>
   </div>
   <div class="notes-body" id="notesBody">
     <textarea id="notesText" placeholder="輸入補充資料…" oninput="saveNotes()"></textarea>
     <div class="notes-saved" id="notesSaved"></div>
+    <div id="notesPrintView" class="print-only" style="display:none;white-space:pre-wrap;font-size:13px;line-height:1.6;padding-top:4px"></div>
   </div>
 </div>
 </div>
@@ -379,6 +390,14 @@ function loadTitle(){
 function saveNotes(){localStorage.setItem('lifeEventsNotesH',document.getElementById('notesText').value);clearTimeout(notesTimer);document.getElementById('notesSaved').textContent='';notesTimer=setTimeout(function(){document.getElementById('notesSaved').textContent='\u2713 \u5df2\u81ea\u52d5\u5132\u5b58';},800);}
 function loadNotes(){document.getElementById('notesText').value=localStorage.getItem('lifeEventsNotesH')||'';}
 function toggleNotes(){var b=document.getElementById('notesBody'),i=document.getElementById('ntoggle');var o=b.classList.toggle('open');i.classList.toggle('open',o);}
+function syncNotesForPrint(){
+  var val=document.getElementById('notesText').value;
+  document.getElementById('notesPrintView').textContent=val;
+  var panel=document.getElementById('notesPanel');
+  if(val.trim())panel.classList.remove('empty-notes');
+  else panel.classList.add('empty-notes');
+}
+window.addEventListener('beforeprint',syncNotesForPrint);
 
 function onBirthChange(){
   var b=getBirth();
