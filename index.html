@@ -115,6 +115,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
 <body>
 <div class="topbar">
   <span class="app-title">📋 重大事件表（橫式）</span>
+  <button class="tb-btn" onclick="openScanModal()">📷 辨識匯入</button>
   <button class="tb-btn" onclick="window.print()">🖨 列印 / 匯出PDF</button>
   <button class="tb-btn" onclick="exportJSON()">💾 備份資料</button>
   <button class="tb-btn" onclick="importJSON()">📂 匯入備份</button>
@@ -164,11 +165,21 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
       <select id="yearSel_roc" onchange="updateHint()" style="min-width:130px;display:none"></select>
       <select id="yearSel_ad" onchange="updateHint()" style="min-width:110px;display:none"></select>
     </div>
+    <div class="fg" id="rangeEndWrap" style="display:none">
+      <label>\u81F3\uFF08\u5340\u9593\u7D50\u675F\uFF09</label>
+      <select id="yearSel_end" onchange="updateHint()" style="min-width:110px"></select>
+    </div>
     <div class="fg" style="flex:1;min-width:200px">
       <label>事件描述</label>
       <input type="text" id="descInput" placeholder="發生了什麼事…">
     </div>
     <button class="btn-add" onclick="addEvent()">＋ 加入</button>
+  </div>
+  <div class="row" style="margin-top:-4px">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);cursor:pointer">
+      <input type="checkbox" id="rangeToggle" style="width:14px;height:14px;accent-color:var(--ac)" onchange="onRangeToggle()">
+      \u9019\u662F\u4E00\u6BB5\u5340\u9593\uFF08\u4F8B\u5982 6\u523012\u6B72\uFF09\uFF0C\u4E0D\u662F\u56FA\u5B9A\u5E74\u7D00
+    </label>
   </div>
   <div class="hint-sm" id="hint"></div>
 </div>
@@ -205,7 +216,7 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     <span>備註</span><span class="ntoggle" id="ntoggle">▼</span>
   </div>
   <div class="notes-body" id="notesBody">
-    <textarea id="notesText" placeholder="輸入備註、觀察、諮商摘要…" oninput="saveNotes()"></textarea>
+    <textarea id="notesText" placeholder="輸入補充資料…" oninput="saveNotes()"></textarea>
     <div class="notes-saved" id="notesSaved"></div>
   </div>
 </div>
@@ -221,10 +232,105 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     </div>
   </div>
 </div>
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3>編輯事件</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--tx2);white-space:nowrap">年紀</span>
+        <input type="number" id="editAge" min="0" max="120" style="width:80px;height:32px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)">
+        <span style="font-size:12px;color:var(--tx3)">歲</span>
+        <span style="font-size:12px;color:var(--tx3)">\u81f3</span>
+        <input type="number" id="editAgeEnd" min="0" max="120" placeholder="\uff08\u9078\u586b\uff09" style="width:80px;height:32px;padding:0 8px;font-size:13px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)">
+        <span style="font-size:12px;color:var(--tx3)">\u6b72\uff08\u5340\u9593\u4e8b\u4ef6\u624d\u586b\uff09</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:12px;color:var(--tx2)">事件描述</span>
+        <textarea id="editDesc" style="width:100%;height:70px;resize:vertical;font-size:13px;padding:8px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx);font-family:inherit"></textarea>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button onclick="closeEditModal()">取消</button>
+      <button class="danger" onclick="saveEditedEvent()" style="background:var(--ac);border-color:var(--ac)">儲存</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="scanModal">
+  <div class="modal" style="width:min(680px,94vw);max-height:88vh;overflow-y:auto">
+    <h3>辨識並匯入事件</h3>
+
+    <div id="scanStep1">
+      <div style="padding:8px 12px;background:var(--acbg);border-radius:var(--rd);margin-bottom:12px">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--tx2)">年齡判讀方式：</span>
+          <button class="age-mode-tab chip active" onclick="setAgeMode('direct')">直接使用填寫的年齡</button>
+          <button class="age-mode-tab chip" onclick="setAgeMode('birth')">以出生年換算</button>
+        </div>
+        <div id="birthRefRow" style="display:none;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--tx2)">此學員出生年（西元）</span>
+          <input type="number" id="scanBirthYear" min="1900" max="2020" style="width:80px;height:28px;padding:0 6px;font-size:13px;font-weight:600;border-radius:4px;border:.5px solid var(--bds);background:var(--sf);color:var(--tx)" onchange="syncScanBirth()">
+          <span style="font-size:11px;color:var(--tx3)">民國年／西元年會依此換算成歲數</span>
+        </div>
+        <div id="directHint" style="font-size:11px;color:var(--tx3)">依稿件上寫的歲數直接匯入；若稿件只寫民國／西元年而無歲數，該筆年齡會標 0，可在預覽時手動修正</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="src-tab chip active" onclick="setScanSource('file')">📄 上傳檔案</button>
+        <button class="src-tab chip" onclick="setScanSource('text')">✍️ 直接貼文字</button>
+      </div>
+
+      <div id="srcFile">
+        <div id="dropZone" style="border:2px dashed var(--bds);border-radius:var(--rd);padding:28px 16px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:12px">
+          <div style="font-size:32px;opacity:.35;margin-bottom:8px">📄</div>
+          <div style="font-size:14px;color:var(--tx);margin-bottom:4px">把手寫稿的照片或 PDF 拖進來</div>
+          <div style="font-size:12px;color:var(--tx3)">或點此選擇檔案（可多份，支援 JPG／PNG／PDF）</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:6px;opacity:.8">Word 檔請先另存成 PDF</div>
+          <input type="file" id="scanFile" accept="image/*,application/pdf,.pdf" multiple style="display:none">
+        </div>
+        <div id="thumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+      </div>
+
+      <div id="srcText" style="display:none">
+        <textarea id="scanTextInput" placeholder="把事件內容貼在這裡，或直接打字。例如：&#10;2歲 兩歲多開始和鄰居小孩玩就會打人&#10;5歲 搬回高雄，同時弟弟出生&#10;民國84年 考上臺南科技大學舞蹈系" style="width:100%;height:160px;resize:vertical;font-size:13px;padding:10px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx);font-family:inherit;line-height:1.6;margin-bottom:12px"></textarea>
+      </div>
+
+      <details style="margin-bottom:12px">
+        <summary style="font-size:12px;color:var(--tx3);cursor:pointer">API 設定</summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:11px;color:var(--tx2)">Anthropic API Key（存在本機瀏覽器，不會外傳）</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="width:100%;height:32px;padding:0 8px;font-size:12px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)" oninput="saveApiKey()">
+          <label style="font-size:11px;color:var(--tx2);margin-top:4px">Worker 網址</label>
+          <input type="text" id="workerUrlInput" style="width:100%;height:32px;padding:0 8px;font-size:12px;border-radius:var(--rd);border:.5px solid var(--bds);background:var(--sf);color:var(--tx)" oninput="saveWorkerUrl()">
+        </div>
+      </details>
+      <div id="scanStatus" style="font-size:12px;color:var(--tx3);min-height:18px;margin-bottom:10px"></div>
+      <div class="modal-btns">
+        <button onclick="closeScanModal()">取消</button>
+        <button id="scanBtn" onclick="runScan()" style="background:var(--ac);color:#fff;border-color:var(--ac)">開始辨識</button>
+      </div>
+    </div>
+
+    <div id="scanStep2" style="display:none">
+      <p style="font-size:13px;color:var(--tx2);margin-bottom:10px">請確認辨識結果，可直接修改或刪除，確認無誤後匯入。<span style="color:var(--dg)">紅框</span>為年齡不詳的事件，若不填年齡，匯入時會改存到下方「補充資料」而非時間軸。</p>
+      <div id="previewList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:44vh;overflow-y:auto"></div>
+      <button onclick="addPreviewRow()" style="font-size:12px;padding:4px 10px;border-radius:var(--rd);border:.5px dashed var(--bds);background:transparent;color:var(--tx2);cursor:pointer;margin-bottom:12px">＋ 手動新增一筆</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);cursor:pointer">
+          <input type="checkbox" id="replaceAll" style="width:14px;height:14px;accent-color:var(--ac)">
+          匯入前先清除現有事件
+        </label>
+      </div>
+      <div class="modal-btns">
+        <button onclick="backToScanStep1()">上一步</button>
+        <button onclick="closeScanModal()">取消</button>
+        <button onclick="confirmImport()" style="background:var(--ac);color:#fff;border-color:var(--ac)">確認匯入</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
 var ROC=1911;
-var CARD_W=46; var COL_GAP=8; var PX_PER_COL=CARD_W+COL_GAP;
+var CARD_W=46; var COL_GAP=4; var PX_PER_COL=CARD_W+COL_GAP;
 var events=JSON.parse(localStorage.getItem('lifeEventsH')||'[]');
 var mode='age';
 var displayFmt=JSON.parse(localStorage.getItem('lifeEventsFmtH')||'{"age":true,"ad":false,"roc":false}');
@@ -277,11 +383,17 @@ function toggleNotes(){var b=document.getElementById('notesBody'),i=document.get
 function onBirthChange(){var b=getBirth(),roc=b-ROC;document.getElementById('birthHint').textContent='\u6c11\u570b'+(roc>0?roc:'\u2014')+'\u5e74\u51fa\u751f';buildSelect();}
 function buildSelect(){
   var birth=getBirth(),cur=new Date().getFullYear();
-  var sa=document.getElementById('yearSel_age'),sr=document.getElementById('yearSel_roc'),sd=document.getElementById('yearSel_ad');
+  var sa=document.getElementById('yearSel_age'),sr=document.getElementById('yearSel_roc'),sd=document.getElementById('yearSel_ad'),se=document.getElementById('yearSel_end');
   sa.innerHTML='';for(var i=0;i<=100;i++){var o=document.createElement('option');o.value=i;o.textContent=i+' \u6b72';sa.appendChild(o);}
   sr.innerHTML='';for(var y=cur-ROC;y>=Math.max(birth-ROC,1);y--){var o=document.createElement('option');o.value=y;o.textContent='\u6c11\u570b'+y+'\u5e74';sr.appendChild(o);}
   sd.innerHTML='';for(var y=cur;y>=birth;y--){var o=document.createElement('option');o.value=y;o.textContent=y+' \u5e74';sd.appendChild(o);}
+  se.innerHTML='';for(var i=0;i<=100;i++){var o=document.createElement('option');o.value=i;o.textContent=i+' \u6b72';se.appendChild(o);}
+  se.value='12';
   updateHint();
+}
+function onRangeToggle(){
+  var on=document.getElementById('rangeToggle').checked;
+  document.getElementById('rangeEndWrap').style.display=on?'':'none';
 }
 function setMode(m){
   mode=m;
@@ -327,17 +439,57 @@ function addEvent(){
   var raw=parseInt(getYearSel().value);
   var desc=document.getElementById('descInput').value.trim();
   if(!desc){document.getElementById('descInput').focus();return;}
-  var birth=getBirth(),adYear,ageNum,sortKey;
+  var isRange=document.getElementById('rangeToggle').checked&&mode==='age';
+  var birth=getBirth(),adYear,ageNum,sortKey,ageEnd=null;
   if(mode==='age'){ageNum=raw;adYear=birth+raw;sortKey=raw;}
   else if(mode==='roc'){adYear=raw+ROC;ageNum=adYear-birth;sortKey=ageNum;}
   else{adYear=raw;ageNum=adYear-birth;sortKey=ageNum;}
-  events.push({id:Date.now(),sortKey:sortKey,ageNum:ageNum,adYear:adYear,rocYear:adYear-ROC,desc:desc});
+  if(isRange){
+    ageEnd=parseInt(document.getElementById('yearSel_end').value);
+    if(!isNaN(ageEnd)&&ageEnd<ageNum){var tmp=ageNum;ageNum=ageEnd;ageEnd=tmp;adYear=birth+ageNum;sortKey=ageNum;}
+  }
+  events.push({id:Date.now(),sortKey:sortKey,ageNum:ageNum,ageEnd:ageEnd,adYear:adYear,rocYear:adYear-ROC,desc:desc});
   events.sort(function(a,b){return a.sortKey-b.sortKey;});
   save();
   document.getElementById('descInput').value='';
   render();toast('\u2713 \u5df2\u52a0\u5165\u4e8b\u4ef6');
 }
 function delEvent(id){events=events.filter(function(e){return e.id!==id;});save();render();}
+
+var editingId=null;
+function editEvent(id){
+  var ev=events.find(function(e){return e.id===id;});
+  if(!ev)return;
+  editingId=id;
+  document.getElementById('editAge').value=ev.ageNum;
+  document.getElementById('editAgeEnd').value=(ev.ageEnd!=null)?ev.ageEnd:'';
+  document.getElementById('editDesc').value=ev.desc;
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(function(){document.getElementById('editDesc').focus();},50);
+}
+function closeEditModal(){editingId=null;document.getElementById('editModal').classList.remove('open');}
+function saveEditedEvent(){
+  if(editingId===null)return;
+  var ev=events.find(function(e){return e.id===editingId;});
+  if(!ev){closeEditModal();return;}
+  var newAge=parseInt(document.getElementById('editAge').value);
+  var newAgeEndRaw=document.getElementById('editAgeEnd').value;
+  var newAgeEnd=newAgeEndRaw===''?null:parseInt(newAgeEndRaw);
+  var newDesc=document.getElementById('editDesc').value.trim();
+  if(!newDesc){document.getElementById('editDesc').focus();return;}
+  var birth=getBirth();
+  if(!isNaN(newAge)){
+    if(newAgeEnd!=null&&!isNaN(newAgeEnd)&&newAgeEnd<newAge){var tmp=newAge;newAge=newAgeEnd;newAgeEnd=tmp;}
+    ev.ageNum=newAge;
+    ev.ageEnd=(newAgeEnd!=null&&!isNaN(newAgeEnd)&&newAgeEnd>newAge)?newAgeEnd:null;
+    ev.sortKey=newAge;
+    ev.adYear=birth+newAge;
+    ev.rocYear=ev.adYear-ROC;
+  }
+  ev.desc=newDesc;
+  events.sort(function(a,b){return a.sortKey-b.sortKey;});
+  save();closeEditModal();render();toast('\u2713 \u5df2\u66f4\u65b0');
+}
 function confirmClear(){document.getElementById('clearModal').classList.add('open');}
 function closeModal(){document.getElementById('clearModal').classList.remove('open');}
 function clearAll(){events=[];save();closeModal();render();toast('\u5df2\u6e05\u9664\u5168\u90e8');}
@@ -359,10 +511,13 @@ function vText(text){
   return html;
 }
 
-// 上方時間標籤：年紀放在年旁邊
+// 上方時間標籤：年紀放在年旁邊；若為區間則顯示「6\u523012\u6b72」
 function buildTimeParts(e){
   var parts=[];
-  if(displayFmt.age)parts.push(e.ageNum+' \u6b72');
+  if(displayFmt.age){
+    if(e.ageEnd!=null&&e.ageEnd>e.ageNum)parts.push(e.ageNum+'\u5230'+e.ageEnd+' \u6b72');
+    else parts.push(e.ageNum+' \u6b72');
+  }
   if(displayFmt.ad)parts.push('\u897f\u5143'+e.adYear+'\u5e74');
   if(displayFmt.roc&&e.rocYear>0)parts.push('\u6c11\u570b'+e.rocYear+'\u5e74');
   return parts;
@@ -396,7 +551,7 @@ function render(){
     var content=document.createElement('div');
     content.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;max-height:'+(MAX_CARD_H-28)+'px';
     content.innerHTML=
-      '<span style="font-size:14px;color:var(--tx)">'+vText(e.desc)+'</span>';
+      '<span style="font-size:17px;color:var(--tx)">'+vText(e.desc)+'</span>';
     card.appendChild(content);
     cardEls.push(card);
   });
@@ -413,14 +568,17 @@ function render(){
   });
   document.body.removeChild(measureWrap);
 
-  // 依實際寬度排列，第一筆從左側 PAD 開始
+  // 依年齡比例排列：年齡差距越大，間距越寬；同時保證卡片不重疊
+  var PX_PER_YEAR=8;
   var positions=[];
-  var xCursor=PAD;
-  cardWidths.forEach(function(w){
-    positions.push(xCursor+w/2);
-    xCursor+=w+COL_GAP;
-  });
-  var totalW=xCursor+PAD;
+  positions.push(PAD+cardWidths[0]/2);
+  for(var pi=1;pi<events.length;pi++){
+    var ageGap=events[pi].sortKey-events[pi-1].sortKey;
+    var minDist=(cardWidths[pi-1]+cardWidths[pi])/2+COL_GAP; // 不重疊的最小中心距
+    var ageDist=ageGap*PX_PER_YEAR;
+    positions.push(positions[pi-1]+Math.max(minDist,ageDist));
+  }
+  var totalW=positions[positions.length-1]+cardWidths[cardWidths.length-1]/2+PAD;
   document.getElementById('tlInner').style.width=totalW+'px';
 
   var maxCardH=140;
@@ -447,13 +605,23 @@ function render(){
     var ld=document.createElement('div');ld.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol.appendChild(ld);
 
     var card=cardEls[idx];
-    card.onmouseenter=function(){var d=this.querySelector('.del-btn');if(d)d.style.display='block';this.style.borderColor='var(--bds)';};
-    card.onmouseleave=function(){var d=this.querySelector('.del-btn');if(d)d.style.display='none';this.style.borderColor='var(--bd)';};
+    card.onmouseenter=function(){this.querySelectorAll('.card-btn').forEach(function(b){b.style.display='block';});this.style.borderColor='var(--bds)';};
+    card.onmouseleave=function(){this.querySelectorAll('.card-btn').forEach(function(b){b.style.display='none';});this.style.borderColor='var(--bd)';};
+
+    // 編輯按鈕
+    var eb=document.createElement('button');
+    eb.className='card-btn del-btn';
+    eb.style.cssText='position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
+    eb.textContent='\u270E';
+    eb.title='\u7de8\u8f2f';
+    eb.onclick=(function(id){return function(ev){ev.stopPropagation();editEvent(id);};})(e.id);
+    card.appendChild(eb);
 
     var db=document.createElement('button');
-    db.className='del-btn';
+    db.className='card-btn del-btn';
     db.style.cssText='position:absolute;top:4px;left:4px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;display:none;writing-mode:horizontal-tb;line-height:1;padding:1px;z-index:2';
     db.textContent='\u2715';
+    db.title='\u522a\u9664';
     db.onclick=(function(id){return function(ev){ev.stopPropagation();delEvent(id);};})(e.id);
     card.appendChild(db);
 
@@ -486,6 +654,379 @@ updateDDLabel();
 
 var today=new Date();
 document.getElementById('profileDate').value=today.getFullYear()+'/'+(today.getMonth()+1).toString().padStart(2,'0')+'/'+today.getDate().toString().padStart(2,'0');
+
+// ===== 手寫稿／檔案／文字 辨識 =====
+var DEFAULT_WORKER='https://course-observation-proxy.iocloudy.workers.dev';
+var scanFiles=[];
+var previewData=[];
+var scanSource='file';
+
+function getApiKey(){return localStorage.getItem('anthropicApiKey')||'';}
+function saveApiKey(){localStorage.setItem('anthropicApiKey',document.getElementById('apiKeyInput').value.trim());}
+function getWorkerUrl(){return localStorage.getItem('scanWorkerUrl')||DEFAULT_WORKER;}
+function saveWorkerUrl(){localStorage.setItem('scanWorkerUrl',document.getElementById('workerUrlInput').value.trim());}
+
+var ageMode='direct';
+
+function setAgeMode(m){
+  ageMode=m;
+  document.querySelectorAll('.age-mode-tab').forEach(function(b,i){
+    b.classList.toggle('active',['direct','birth'][i]===m);
+  });
+  document.getElementById('birthRefRow').style.display=(m==='birth')?'flex':'none';
+  document.getElementById('directHint').style.display=(m==='direct')?'':'none';
+}
+function syncScanBirth(){
+  var v=parseInt(document.getElementById('scanBirthYear').value);
+  if(!isNaN(v)){
+    document.getElementById('birthYear').value=v;
+    onBirthChange();
+  }
+}
+
+function setScanSource(s){
+  scanSource=s;
+  document.querySelectorAll('.src-tab').forEach(function(b,i){
+    b.classList.toggle('active',['file','text'][i]===s);
+  });
+  document.getElementById('srcFile').style.display=(s==='file')?'':'none';
+  document.getElementById('srcText').style.display=(s==='text')?'':'none';
+  document.getElementById('scanStatus').textContent='';
+}
+
+function openScanModal(){
+  scanFiles=[];previewData=[];
+  document.getElementById('scanStep1').style.display='';
+  document.getElementById('scanStep2').style.display='none';
+  document.getElementById('thumbs').innerHTML='';
+  document.getElementById('scanStatus').textContent='';
+  document.getElementById('scanTextInput').value='';
+  document.getElementById('apiKeyInput').value=getApiKey();
+  document.getElementById('workerUrlInput').value=getWorkerUrl();
+  document.getElementById('scanBirthYear').value=getBirth();
+  setAgeMode('direct');
+  setScanSource('file');
+  document.getElementById('scanModal').classList.add('open');
+}
+function closeScanModal(){document.getElementById('scanModal').classList.remove('open');}
+function backToScanStep1(){
+  document.getElementById('scanStep1').style.display='';
+  document.getElementById('scanStep2').style.display='none';
+}
+
+function renderThumbs(){
+  var t=document.getElementById('thumbs');
+  t.innerHTML='';
+  scanFiles.forEach(function(f,i){
+    var box=document.createElement('div');
+    box.style.cssText='position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;border:.5px solid var(--bds);background:var(--sf2);display:flex;align-items:center;justify-content:center';
+    if(f.kind==='image'){
+      var im=document.createElement('img');
+      im.src='data:'+f.mediaType+';base64,'+f.data;
+      im.style.cssText='width:100%;height:100%;object-fit:cover';
+      box.appendChild(im);
+    }else{
+      var ic=document.createElement('div');
+      ic.style.cssText='text-align:center;padding:4px';
+      ic.innerHTML='<div style="font-size:20px">\uD83D\uDCC4</div><div style="font-size:9px;color:var(--tx3);margin-top:2px">PDF</div>';
+      box.appendChild(ic);
+    }
+    var x=document.createElement('button');
+    x.textContent='\u2715';
+    x.style.cssText='position:absolute;top:1px;right:1px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;line-height:1;padding:2px 4px;z-index:2';
+    x.onclick=(function(idx){return function(){scanFiles.splice(idx,1);renderThumbs();};})(i);
+    box.appendChild(x);
+    t.appendChild(box);
+  });
+}
+
+// 圖片自動壓縮：最長邊縮到 1600px、轉 JPEG 85%，避免手機照片超過 API 上限
+function compressImage(file,cb){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var MAX=1600;
+      var w=img.width,h=img.height;
+      if(w<=MAX&&h<=MAX&&file.size<1500000){
+        // 已經夠小，直接用原檔
+        cb(e.target.result.split(',')[1],file.type);
+        return;
+      }
+      var scale=Math.min(MAX/w,MAX/h,1);
+      var cw=Math.round(w*scale),ch=Math.round(h*scale);
+      var canvas=document.createElement('canvas');
+      canvas.width=cw;canvas.height=ch;
+      canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+      var dataUrl=canvas.toDataURL('image/jpeg',0.85);
+      cb(dataUrl.split(',')[1],'image/jpeg');
+    };
+    img.onerror=function(){cb(e.target.result.split(',')[1],file.type);};
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleFiles(files){
+  var arr=Array.prototype.slice.call(files);
+  var st=document.getElementById('scanStatus');
+  arr.forEach(function(f){
+    var isImg=f.type.match(/^image\//);
+    var isPdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);
+    if(!isImg&&!isPdf){
+      st.style.color='var(--dg)';
+      st.textContent='\u4E0D\u652F\u63F4\u7684\u683C\u5F0F\uFF1A'+f.name+'\uFF08\u8ACB\u7528\u5716\u7247\u6216 PDF\uFF09';
+      return;
+    }
+    if(isPdf&&f.size>30000000){
+      st.style.color='var(--dg)';
+      st.textContent='PDF \u904E\u5927\uFF08\u8D85\u904E 30MB\uFF09\uFF1A'+f.name;
+      return;
+    }
+    if(isImg){
+      compressImage(f,function(b64,mt){
+        scanFiles.push({kind:'image',data:b64,mediaType:mt,name:f.name});
+        renderThumbs();
+      });
+    }else{
+      var reader=new FileReader();
+      reader.onload=function(e){
+        scanFiles.push({kind:'pdf',data:e.target.result.split(',')[1],mediaType:'application/pdf',name:f.name});
+        renderThumbs();
+      };
+      reader.readAsDataURL(f);
+    }
+  });
+}
+
+function initScanDropZone(){
+  var dz=document.getElementById('dropZone');
+  var fi=document.getElementById('scanFile');
+  dz.onclick=function(){fi.click();};
+  fi.onchange=function(){handleFiles(fi.files);fi.value='';};
+  dz.ondragover=function(e){e.preventDefault();dz.style.borderColor='var(--ac)';dz.style.background='var(--acbg)';};
+  dz.ondragleave=function(){dz.style.borderColor='var(--bds)';dz.style.background='transparent';};
+  dz.ondrop=function(e){
+    e.preventDefault();
+    dz.style.borderColor='var(--bds)';dz.style.background='transparent';
+    handleFiles(e.dataTransfer.files);
+  };
+}
+
+function buildScanPrompt(birth){
+  if(ageMode==='birth'){
+    return '\u9019\u662F\u4E00\u4EFD\u4EBA\u751F\u91CD\u5927\u4E8B\u4EF6\u8A18\u9304\u3002\u8ACB\u8FA8\u8B58\u5176\u4E2D\u7684\u5167\u5BB9\uFF0C\u627E\u51FA\u6BCF\u4E00\u7B46\u4E8B\u4EF6\u7684\u300C\u5E74\u7D00\u300D\u548C\u300C\u4E8B\u4EF6\u63CF\u8FF0\u300D\u3002\n\n\u91CD\u8981\u898F\u5247\uFF1A\n1. \u5E74\u7D00\u4E00\u5F8B\u8F49\u63DB\u6210\u300C\u6B72\u6578\u300D\u7684\u6574\u6578\u3002\u5982\u679C\u539F\u6587\u5BEB\u7684\u662F\u6C11\u570B\u5E74\uFF0C\u8ACB\u7528\u516C\u5F0F\uFF1A\u6B72\u6578 = (\u6C11\u570B\u5E74 + 1911) - '+birth+'\u3002\u5982\u679C\u5BEB\u7684\u662F\u897F\u5143\u5E74\uFF0C\u8ACB\u7528\uFF1A\u6B72\u6578 = \u897F\u5143\u5E74 - '+birth+'\u3002\u6B64\u4EBA\u51FA\u751F\u65BC\u897F\u5143 '+birth+' \u5E74\u3002\n2. \u5982\u679C\u4E8B\u4EF6\u662F\u4E00\u500B\u5E74\u9F61\u5340\u9593\uFF08\u4F8B\u5982\u300C6\u523012\u6B72\u300D\u3001\u300C\u5C0F\u5B78\u968E\u6BB5\u300D\u5C0D\u61C9\u4E00\u6BB5\u5E74\u9F61\uFF09\uFF0C\u8ACB\u56DE\u50B3 age \u70BA\u8D77\u59CB\u5E74\u7D00\u3001ageEnd \u70BA\u7D50\u675F\u5E74\u7D00\uFF1B\u82E5\u4E0D\u662F\u5340\u9593\u800C\u662F\u55AE\u4E00\u5E74\u7D00\uFF0C\u5247\u4E0D\u8981\u5305\u542B ageEnd \u6B04\u4F4D\uFF08\u6216\u8A2D\u70BA null\uFF09\u3002\n3. \u4E8B\u4EF6\u63CF\u8FF0\u4FDD\u7559\u539F\u6587\u7684\u7528\u8A5E\uFF0C\u4E0D\u8981\u6539\u5BEB\u6216\u6F64\u98FE\u3002\n4. \u82E5\u67D0\u7B46\u5E74\u7D00\u7121\u6CD5\u5224\u65B7\uFF0C\u5E74\u7D00\u586B 0\u3002\n\n\u8ACB\u53EA\u56DE\u50B3 JSON \u9663\u5217\uFF0C\u4E0D\u8981\u6709\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\u3001\u4E0D\u8981\u7528 markdown \u5305\u88F9\u3002\u683C\u5F0F\uFF1A\n[{"age":2,"desc":"\u4E8B\u4EF6\u5167\u5BB9"},{"age":6,"ageEnd":12,"desc":"\u5340\u9593\u4E8B\u4EF6\u5167\u5BB9"}]';
+  }
+  // direct 模式：不換算，直接使用稿件上寫的歲數
+  return '\u9019\u662F\u4E00\u4EFD\u4EBA\u751F\u91CD\u5927\u4E8B\u4EF6\u8A18\u9304\u3002\u8ACB\u8FA8\u8B58\u5176\u4E2D\u7684\u5167\u5BB9\uFF0C\u627E\u51FA\u6BCF\u4E00\u7B46\u4E8B\u4EF6\u7684\u300C\u5E74\u7D00\u300D\u548C\u300C\u4E8B\u4EF6\u63CF\u8FF0\u300D\u3002\n\n\u91CD\u8981\u898F\u5247\uFF1A\n1. \u76F4\u63A5\u4F7F\u7528\u7A3F\u4EF6\u4E0A\u5BEB\u7684\u6B72\u6578\uFF0C\u4E0D\u8981\u81EA\u884C\u63DB\u7B97\u3002\n2. \u5982\u679C\u7A3F\u4EF6\u53EA\u5BEB\u4E86\u6C11\u570B\u5E74\u6216\u897F\u5143\u5E74\u800C\u6C92\u6709\u6B72\u6578\uFF08\u4E5F\u6C92\u6709\u5176\u4ED6\u7DDA\u7D22\u53EF\u63A8\u65B7\u5E74\u9F61\uFF09\uFF0C\u8A72\u7B46\u7684 age \u586B 0\uFF0C\u4E26\u5C07\u539F\u59CB\u5E74\u4EFD\u8CC7\u8A0A\u4FDD\u7559\u5728 desc \u88E1\u3002\n3. \u5982\u679C\u4E8B\u4EF6\u662F\u4E00\u500B\u5E74\u9F61\u5340\u9593\uFF08\u4F8B\u5982\u300C6\u523012\u6B72\u300D\u3001\u300C\u5C0F\u5B78\u968E\u6BB5\u300D\u5C0D\u61C9\u4E00\u6BB5\u5E74\u9F61\uFF09\uFF0C\u8ACB\u56DE\u50B3 age \u70BA\u8D77\u59CB\u5E74\u7D00\u3001ageEnd \u70BA\u7D50\u675F\u5E74\u7D00\uFF1B\u82E5\u4E0D\u662F\u5340\u9593\u800C\u662F\u55AE\u4E00\u5E74\u7D00\uFF0C\u5247\u4E0D\u8981\u5305\u542B ageEnd \u6B04\u4F4D\uFF08\u6216\u8A2D\u70BA null\uFF09\u3002\n4. \u4E8B\u4EF6\u63CF\u8FF0\u4FDD\u7559\u539F\u6587\u7684\u7528\u8A5E\uFF0C\u4E0D\u8981\u6539\u5BEB\u6216\u6F64\u98FE\u3002\n\n\u8ACB\u53EA\u56DE\u50B3 JSON \u9663\u5217\uFF0C\u4E0D\u8981\u6709\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\u3001\u4E0D\u8981\u7528 markdown \u5305\u88F9\u3002\u683C\u5F0F\uFF1A\n[{"age":2,"desc":"\u4E8B\u4EF6\u5167\u5BB9"},{"age":6,"ageEnd":12,"desc":"\u5340\u9593\u4E8B\u4EF6\u5167\u5BB9"}]';
+}
+
+function runScan(){
+  var key=getApiKey();
+  var url=getWorkerUrl();
+  var st=document.getElementById('scanStatus');
+  if(!key){st.textContent='\u26A0 \u8ACB\u5148\u5728\u300CAPI \u8A2D\u5B9A\u300D\u586B\u5165 API Key';st.style.color='var(--dg)';return;}
+
+  var content=[];
+  var birth=ageMode==='birth'?getBirth():null;
+  var prompt=buildScanPrompt(birth);
+
+  if(scanSource==='text'){
+    var txtIn=document.getElementById('scanTextInput').value.trim();
+    if(!txtIn){st.textContent='\u26A0 \u8ACB\u5148\u8CBC\u4E0A\u6216\u8F38\u5165\u5167\u5BB9';st.style.color='var(--dg)';return;}
+    content.push({type:'text',text:prompt+'\n\n\u4EE5\u4E0B\u662F\u5167\u5BB9\uFF1A\n'+txtIn});
+  }else{
+    if(!scanFiles.length){st.textContent='\u26A0 \u8ACB\u5148\u62D6\u5165\u7167\u7247\u6216 PDF';st.style.color='var(--dg)';return;}
+    scanFiles.forEach(function(f){
+      if(f.kind==='image'){
+        content.push({type:'image',source:{type:'base64',media_type:f.mediaType,data:f.data}});
+      }else{
+        content.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}});
+      }
+    });
+    content.push({type:'text',text:prompt});
+  }
+
+  var btn=document.getElementById('scanBtn');
+  btn.disabled=true;btn.textContent='\u8FA8\u8B58\u4E2D...';
+  st.style.color='var(--tx3)';
+  st.textContent='\u6B63\u5728\u8FA8\u8B58\uFF0C\u8ACB\u7A0D\u5019...';
+
+  fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:4000,
+      messages:[{role:'user',content:content}]
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    btn.disabled=false;btn.textContent='\u958B\u59CB\u8FA8\u8B58';
+    if(data.error){
+      st.style.color='var(--dg)';
+      st.textContent='\u932F\u8AA4\uFF1A'+(data.error.message||JSON.stringify(data.error));
+      return;
+    }
+    var txt='';
+    if(data.content&&data.content.length){
+      data.content.forEach(function(b){if(b.type==='text')txt+=b.text;});
+    }
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed;
+    try{parsed=JSON.parse(txt);}
+    catch(err){
+      st.style.color='var(--dg)';
+      st.textContent='\u56DE\u50B3\u683C\u5F0F\u7121\u6CD5\u89E3\u6790\uFF0C\u8ACB\u91CD\u8A66';
+      return;
+    }
+    if(!Array.isArray(parsed)||!parsed.length){
+      st.style.color='var(--dg)';
+      st.textContent='\u6C92\u6709\u8FA8\u8B58\u5230\u4E8B\u4EF6\uFF0C\u8ACB\u78BA\u8A8D\u5167\u5BB9\u6216\u63DB\u4E00\u5F35\u66F4\u6E05\u695A\u7684\u7167\u7247';
+      return;
+    }
+    previewData=parsed.map(function(p){
+      var ae=(p.ageEnd!=null&&p.ageEnd!=='')?parseInt(p.ageEnd):null;
+      return {age:parseInt(p.age)||0,ageEnd:(ae!=null&&!isNaN(ae))?ae:null,desc:String(p.desc||'').trim()};
+    });
+    previewData.sort(function(a,b){return a.age-b.age;});
+    renderPreview();
+    document.getElementById('scanStep1').style.display='none';
+    document.getElementById('scanStep2').style.display='';
+  })
+  .catch(function(err){
+    btn.disabled=false;btn.textContent='\u958B\u59CB\u8FA8\u8B58';
+    st.style.color='var(--dg)';
+    st.textContent='\u9023\u7DDA\u5931\u6557\uFF1A'+err.message;
+  });
+}
+
+function renderPreview(){
+  var pl=document.getElementById('previewList');
+  pl.innerHTML='';
+  previewData.forEach(function(row,i){
+    var isSuspect=(!row.age||row.age===0);
+    var r=document.createElement('div');
+    r.style.cssText='display:flex;gap:6px;align-items:flex-start;padding:6px;border-radius:6px;background:var(--sf2);border:'+(isSuspect?'1.5px solid var(--dg)':'.5px solid var(--bd)');
+
+    if(isSuspect){
+      var warn=document.createElement('span');
+      warn.textContent='\u26A0';
+      warn.title='\u5E74\u9F61\u4E0D\u8A73\uFF1A\u82E5\u4FDD\u6301 0\uFF0C\u532F\u5165\u6642\u4E0D\u6703\u9032\u6642\u9593\u8EF8\uFF0C\u6539\u5B58\u5165\u88DC\u5145\u8CC7\u6599\uFF1B\u82E5\u77E5\u9053\u5E74\u9F61\u8ACB\u76F4\u63A5\u586B\u5165';
+      warn.style.cssText='color:var(--dg);font-size:13px;align-self:center;flex-shrink:0';
+      r.appendChild(warn);
+    }
+
+    var ageIn=document.createElement('input');
+    ageIn.type='number';ageIn.min='0';ageIn.max='120';ageIn.value=row.age;
+    ageIn.style.cssText='width:52px;height:30px;padding:0 6px;font-size:12px;border-radius:4px;border:.5px solid '+(isSuspect?'var(--dg)':'var(--bds)')+';background:var(--sf);color:var(--tx);flex-shrink:0';
+    ageIn.oninput=(function(idx){return function(){previewData[idx].age=parseInt(this.value)||0;renderPreview();};})(i);
+    r.appendChild(ageIn);
+
+    var lbl=document.createElement('span');
+    lbl.textContent='\u6B72';
+    lbl.style.cssText='font-size:11px;color:var(--tx3);align-self:center;flex-shrink:0';
+    r.appendChild(lbl);
+
+    var toEl=document.createElement('span');
+    toEl.textContent='\u81F3';
+    toEl.style.cssText='font-size:11px;color:var(--tx3);align-self:center;flex-shrink:0';
+    r.appendChild(toEl);
+
+    var endIn=document.createElement('input');
+    endIn.type='number';endIn.min='0';endIn.max='120';endIn.value=(row.ageEnd!=null)?row.ageEnd:'';
+    endIn.placeholder='\u2014';
+    endIn.title='\u5340\u9593\u4E8B\u4EF6\u624D\u586B\uFF08\u4F8B\u5982 6\u523012\u6B72\uFF09';
+    endIn.style.cssText='width:52px;height:30px;padding:0 6px;font-size:12px;border-radius:4px;border:.5px solid var(--bds);background:var(--sf);color:var(--tx);flex-shrink:0';
+    endIn.oninput=(function(idx){return function(){var v=this.value;previewData[idx].ageEnd=(v==='')?null:(parseInt(v)||null);};})(i);
+    r.appendChild(endIn);
+
+    var lbl2=document.createElement('span');
+    lbl2.textContent='\u6B72';
+    lbl2.style.cssText='font-size:11px;color:var(--tx3);align-self:center;flex-shrink:0';
+    r.appendChild(lbl2);
+
+    var descIn=document.createElement('textarea');
+    descIn.value=row.desc;
+    descIn.rows=2;
+    descIn.style.cssText='flex:1;min-height:30px;padding:5px 7px;font-size:12px;border-radius:4px;border:.5px solid var(--bds);background:var(--sf);color:var(--tx);font-family:inherit;resize:vertical;line-height:1.5';
+    descIn.oninput=(function(idx){return function(){previewData[idx].desc=this.value;};})(i);
+    r.appendChild(descIn);
+
+    var del=document.createElement('button');
+    del.textContent='\u2715';
+    del.title='\u522A\u9664\u9019\u7B46';
+    del.style.cssText='background:none;border:none;cursor:pointer;color:var(--tx3);font-size:13px;padding:4px;flex-shrink:0;align-self:center';
+    del.onmouseenter=function(){this.style.color='var(--dg)';};
+    del.onmouseleave=function(){this.style.color='var(--tx3)';};
+    del.onclick=(function(idx){return function(){previewData.splice(idx,1);renderPreview();};})(i);
+    r.appendChild(del);
+
+    pl.appendChild(r);
+  });
+  if(!previewData.length){
+    var em=document.createElement('div');
+    em.style.cssText='font-size:12px;color:var(--tx3);text-align:center;padding:16px';
+    em.textContent='\u5DF2\u6E05\u7A7A\uFF0C\u53EF\u624B\u52D5\u65B0\u589E\u4E00\u7B46';
+    pl.appendChild(em);
+  }
+}
+
+function addPreviewRow(){
+  previewData.push({age:0,ageEnd:null,desc:''});
+  renderPreview();
+}
+
+function confirmImport(){
+  var valid=previewData.filter(function(r){return r.desc.trim();});
+  if(!valid.length){toast('\u6C92\u6709\u53EF\u532F\u5165\u7684\u4E8B\u4EF6');return;}
+
+  // 年齡不詳（age=0）的事件不進時間軸，改寫入補充資料
+  var withAge=valid.filter(function(r){return r.age&&r.age>0;});
+  var noAge=valid.filter(function(r){return !r.age||r.age<=0;});
+
+  if(document.getElementById('replaceAll').checked)events=[];
+  var birth=getBirth();
+  var baseId=Date.now();
+  withAge.forEach(function(r,i){
+    var ad=birth+r.age;
+    var ae=(r.ageEnd!=null&&r.ageEnd>r.age)?r.ageEnd:null;
+    events.push({id:baseId+i,sortKey:r.age,ageNum:r.age,ageEnd:ae,adYear:ad,rocYear:ad-ROC,desc:r.desc.trim()});
+  });
+  events.sort(function(a,b){return a.sortKey-b.sortKey;});
+  save();
+
+  if(noAge.length){
+    var existing=localStorage.getItem('lifeEventsNotesH')||'';
+    var addition=noAge.map(function(r){return '\u3010\u5E74\u9F61\u4E0D\u8A73\u3011'+r.desc.trim();}).join('\n');
+    var merged=existing?(existing+'\n'+addition):addition;
+    localStorage.setItem('lifeEventsNotesH',merged);
+    loadNotes();
+    var nb=document.getElementById('notesBody'),nt=document.getElementById('ntoggle');
+    if(!nb.classList.contains('open')){nb.classList.add('open');nt.classList.add('open');}
+  }
+
+  closeScanModal();render();
+  var msg='\u2713 \u5DF2\u532F\u5165 '+withAge.length+' \u7B46\u4E8B\u4EF6';
+  if(noAge.length)msg+='\uFF0C'+noAge.length+' \u7B46\u5E74\u9F61\u4E0D\u8A73\u5DF2\u5B58\u5165\u88DC\u5145\u8CC7\u6599';
+  toast(msg);
+}
+
+
+// Esc \u9375\u3001\u9EDE\u80CC\u666F\u95DC\u9589 modal
+document.querySelectorAll('.modal-bg').forEach(function(bg){
+  bg.addEventListener('click',function(e){
+    if(e.target===bg)bg.classList.remove('open');
+  });
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal-bg.open').forEach(function(bg){bg.classList.remove('open');});
+  }
+});
+
+initScanDropZone();
 loadTitle();loadProfile();loadNotes();onBirthChange();render();
 document.getElementById('descInput').addEventListener('keydown',function(e){if(e.key==='Enter')addEvent();});
 </script>
