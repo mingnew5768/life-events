@@ -654,6 +654,7 @@ function render(){
   // ===== 畫面版：單一連續橫向時間軸（可橫向捲動編輯） =====
   document.getElementById('tlInner').style.width=totalW+'px';
   var maxCardH=140;
+  var maxTopH=90; // 年齡標籤區高度：至少維持原本 90px，遇到較長的「X到Y歲」標籤時會自動加高，避免文字被裁切或跟下方卡片重疊
   events.forEach(function(e,idx){
     var x=positions[idx];
     var topCol=document.createElement('div');
@@ -662,6 +663,8 @@ function render(){
     if(timeLbl)topCol.appendChild(timeLbl);
     var lu=document.createElement('div');lu.style.cssText='width:1.5px;height:10px;background:var(--bds)';topCol.appendChild(lu);
     tlTop.appendChild(topCol);
+    var th=topCol.offsetHeight;
+    if(th>maxTopH)maxTopH=th;
 
     var btmCol=document.createElement('div');
     btmCol.style.cssText='position:absolute;left:'+x+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
@@ -672,6 +675,7 @@ function render(){
     var h=card.offsetHeight;
     if(h>maxCardH)maxCardH=h;
   });
+  tlTop.style.height=maxTopH+'px';
   tlBottom.style.height=(maxCardH+20)+'px';
 
   // ===== 列印版：依印刷頁寬分組，每組各自一頁（用 table-row 才能正確分頁，
@@ -704,8 +708,7 @@ function render(){
 
     // 最後一頁，而且有備註要處理：先試標準高度是否連同備註塞得下
     var stdBuilt=buildStandardGroupRow(gs,ge,PRINT_CARD_TARGET_H,positions,cardWidths);
-    var stdRowH=64+18+(PRINT_CARD_TARGET_H+20);
-    var stdAvail=PRINT_PAGE_H-headerAllowance-stdRowH-10;
+    var stdAvail=PRINT_PAGE_H-headerAllowance-stdBuilt.rowH-10;
 
     if(notesBlockH<=stdAvail){
       tlPrintPages.appendChild(stdBuilt.tr);
@@ -717,8 +720,7 @@ function render(){
     var fitted=null;
     for(var tryH=PRINT_CARD_TARGET_H-20; tryH>=200; tryH-=20){
       var tryBuilt=buildLocalGroupRow(gs,ge,tryH);
-      var tryRowH=64+18+(tryH+20);
-      var tryAvail=PRINT_PAGE_H-headerAllowance-tryRowH-10;
+      var tryAvail=PRINT_PAGE_H-headerAllowance-tryBuilt.rowH-10;
       if(tryBuilt.gWidth<=PRINT_PAGE_W && notesBlockH<=tryAvail){
         fitted=tryBuilt;
         break;
@@ -763,9 +765,28 @@ function measureNotesBlockHeight(val){
   return hgt;
 }
 
+function measureLabelHeight(e){
+  var lbl=makeTimeLabel(e);
+  if(!lbl)return 20; // 沒有時間標籤時，只需保留刻度線的高度
+  lbl.style.position='absolute';lbl.style.visibility='hidden';lbl.style.left='-9999px';lbl.style.top='0';
+  document.body.appendChild(lbl);
+  var h=lbl.offsetHeight;
+  document.body.removeChild(lbl);
+  return h+10; // 加上下方 10px 刻度線
+}
+
 function buildStandardGroupRow(gs,ge,cardH,positions,cardWidths){
   var gBase=positions[gs]-cardWidths[gs]/2-8;
   var gWidth=(positions[ge-1]+cardWidths[ge-1]/2)-gBase+8;
+
+  // 量測這一頁裡最高的年齡標籤（例如「27到33歲」這種區間標籤會比單一年齡高很多），
+  // 避免標籤被裁切或超出固定高度的框，跟下方卡片重疊；多出來的高度從卡片高度預算裡扣掉
+  var maxLabelH=64;
+  for(var mi=gs; mi<ge; mi++){
+    var mh=measureLabelHeight(events[mi]);
+    if(mh>maxLabelH)maxLabelH=mh;
+  }
+  var actualCardH=Math.max(150,cardH-(maxLabelH-64));
 
   var tr=document.createElement('tr');
   tr.className='pp-row';
@@ -775,11 +796,12 @@ function buildStandardGroupRow(gs,ge,cardH,positions,cardWidths){
   pInner.style.cssText='position:relative;width:'+gWidth+'px';
 
   var pTop=document.createElement('div');pTop.className='tl-top';
+  pTop.style.cssText='height:'+maxLabelH+'px !important';
   var pAxisRow=document.createElement('div');pAxisRow.className='tl-axis-row';
   var pAxisLine=document.createElement('div');pAxisLine.className='tl-axis-line';
   pAxisRow.appendChild(pAxisLine);
   var pBottom=document.createElement('div');pBottom.className='tl-bottom';
-  pBottom.style.height=(cardH+20)+'px';
+  pBottom.style.height=(actualCardH+20)+'px';
 
   for(var idx=gs; idx<ge; idx++){
     var e2=events[idx];
@@ -795,7 +817,7 @@ function buildStandardGroupRow(gs,ge,cardH,positions,cardWidths){
     var btmCol2=document.createElement('div');
     btmCol2.style.cssText='position:absolute;left:'+x2+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
     var ld2=document.createElement('div');ld2.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol2.appendChild(ld2);
-    var card2=makeCardDiv(e2.desc,false,null,cardH,cardH);
+    var card2=makeCardDiv(e2.desc,false,null,actualCardH,actualCardH);
     btmCol2.appendChild(card2);
     pBottom.appendChild(btmCol2);
   }
@@ -805,7 +827,8 @@ function buildStandardGroupRow(gs,ge,cardH,positions,cardWidths){
   pInner.appendChild(pBottom);
   td.appendChild(pInner);
   tr.appendChild(td);
-  return {tr:tr,gWidth:gWidth};
+  var rowH=maxLabelH+18+(actualCardH+20);
+  return {tr:tr,gWidth:gWidth,rowH:rowH};
 }
 
 function buildLocalGroupRow(gs,ge,cardH){
@@ -828,16 +851,25 @@ function buildLocalGroupRow(gs,ge,cardH){
   }
   var gWidth=localPos[localPos.length-1]+widths[widths.length-1]/2+PAD2;
 
+  // 同樣量測這一頁最高的年齡標籤，避免縮高後標籤反而裁切/重疊
+  var maxLabelH=64;
+  for(var mi=0; mi<evts.length; mi++){
+    var mh=measureLabelHeight(evts[mi]);
+    if(mh>maxLabelH)maxLabelH=mh;
+  }
+  var actualCardH=Math.max(150,cardH-(maxLabelH-64));
+
   var tr=document.createElement('tr');tr.className='pp-row';
   var td=document.createElement('td');td.className='pp-cell';
   var pInner=document.createElement('div');
   pInner.style.cssText='position:relative;width:'+gWidth+'px';
   var pTop=document.createElement('div');pTop.className='tl-top';
+  pTop.style.cssText='height:'+maxLabelH+'px !important';
   var pAxisRow=document.createElement('div');pAxisRow.className='tl-axis-row';
   var pAxisLine=document.createElement('div');pAxisLine.className='tl-axis-line';
   pAxisRow.appendChild(pAxisLine);
   var pBottom=document.createElement('div');pBottom.className='tl-bottom';
-  pBottom.style.height=(cardH+20)+'px';
+  pBottom.style.height=(actualCardH+20)+'px';
 
   for(var j=0;j<evts.length;j++){
     var e3=evts[j];
@@ -852,7 +884,7 @@ function buildLocalGroupRow(gs,ge,cardH){
     var btmCol3=document.createElement('div');
     btmCol3.style.cssText='position:absolute;left:'+x3+'px;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center';
     var ld3=document.createElement('div');ld3.style.cssText='width:1.5px;height:10px;background:var(--bds);flex-shrink:0';btmCol3.appendChild(ld3);
-    var card3=makeCardDiv(e3.desc,false,null,cardH,cardH);
+    var card3=makeCardDiv(e3.desc,false,null,actualCardH,actualCardH);
     btmCol3.appendChild(card3);
     pBottom.appendChild(btmCol3);
   }
@@ -862,7 +894,8 @@ function buildLocalGroupRow(gs,ge,cardH){
   pInner.appendChild(pBottom);
   td.appendChild(pInner);
   tr.appendChild(td);
-  return {tr:tr,gWidth:gWidth};
+  var rowH=maxLabelH+18+(actualCardH+20);
+  return {tr:tr,gWidth:gWidth,rowH:rowH};
 }
 
 function exportJSON(){
