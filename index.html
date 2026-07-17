@@ -108,8 +108,6 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   .tl-axis-row { height:18px !important; }
   .tl-axis-line { background:#333 !important; }
   .ev-print-card { border:1px solid #999 !important; background:#fff !important; }
-  .ev-print-card span { font-size:19px !important; }
-  .time-label-print { font-size:14px !important; font-weight:700 !important; }
 
   /* 備註：列印時強制展開，改用純文字鏡像顯示，內容為空時整區不印出 */
   .notes-panel { border:1.5px solid #222 !important; background:#fff !important; margin-top:14px; page-break-inside:avoid; }
@@ -400,13 +398,7 @@ function syncNotesForPrint(){
   if(val.trim())panel.classList.remove('empty-notes');
   else panel.classList.add('empty-notes');
 }
-window.addEventListener('beforeprint',function(){
-  syncNotesForPrint();
-  render(); // 列印字級與螢幕不同，需在列印樣式生效後重新計算卡片寬度與位置，避免重疊
-});
-window.addEventListener('afterprint',function(){
-  render(); // 列印結束後，依一般畫面字級重新排版
-});
+window.addEventListener('beforeprint',syncNotesForPrint);
 
 function onBirthChange(){
   var b=getBirth();
@@ -612,7 +604,7 @@ function render(){
     var content=document.createElement('div');
     content.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;max-height:'+(MAX_CARD_H-28)+'px';
     content.innerHTML=
-      '<span style="font-size:17px;color:var(--tx)">'+vText(e.desc)+'</span>';
+      '<span style="font-size:19px;color:var(--tx)">'+vText(e.desc)+'</span>';
     card.appendChild(content);
     cardEls.push(card);
   });
@@ -650,7 +642,7 @@ function render(){
     if(parts.length){
       var timeLbl=document.createElement('div');
       timeLbl.className='time-label-print';
-      timeLbl.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;font-weight:600;color:var(--tx2);line-height:1.5;margin-bottom:4px;white-space:nowrap';
+      timeLbl.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;font-size:14px;font-weight:700;color:var(--tx2);line-height:1.5;margin-bottom:4px;white-space:nowrap';
       timeLbl.innerHTML=vText(parts.join('\u3000'));
       topCol.appendChild(timeLbl);
     }
