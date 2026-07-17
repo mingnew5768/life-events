@@ -82,11 +82,11 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
     border:1.5px solid #222 !important;
     background:#f7f7f7 !important;
     margin-bottom:8px;
-    padding:.4rem .8rem !important;
+    padding:.6rem 1rem !important;
     page-break-after:avoid;
   }
-  .pf label { color:#555 !important; }
-  .pf input { color:#000 !important; font-weight:700 !important; }
+  .pf label { color:#555 !important; font-size:13px !important; }
+  .pf input { color:#000 !important; font-weight:700 !important; font-size:16px !important; }
   .tl-outer {
     overflow:visible !important;
     border:none !important;
@@ -97,26 +97,29 @@ select:focus,input:focus{outline:none;border-color:var(--ac)}
   .print-title {
     display:block !important;
     text-align:center;
-    font-size:18px;
+    font-size:22px;
     font-weight:800;
     letter-spacing:.1em;
     margin-bottom:14px;
     width:100%;
   }
   /* 上方時間標籤區保留適當高度，避免與標題重疊 */
-  .tl-top { height:56px !important; }
+  .tl-top { height:64px !important; }
   .tl-axis-row { height:18px !important; }
   .tl-axis-line { background:#333 !important; }
   .ev-print-card { border:1px solid #999 !important; background:#fff !important; }
+  .ev-print-card span { font-size:19px !important; }
+  .time-label-print { font-size:14px !important; font-weight:700 !important; }
 
   /* 備註：列印時強制展開，改用純文字鏡像顯示，內容為空時整區不印出 */
   .notes-panel { border:1.5px solid #222 !important; background:#fff !important; margin-top:14px; page-break-inside:avoid; }
   .notes-panel.empty-notes { display:none !important; }
   .notes-header .ntoggle { display:none !important; }
+  .notes-header span { font-size:14px !important; }
   .notes-body { display:block !important; }
   .notes-body textarea { display:none !important; }
   .notes-saved { display:none !important; }
-  .print-only { display:block !important; }
+  .print-only { display:block !important; font-size:16px !important; line-height:1.7 !important; }
 
   @page { size: A4 landscape; margin: 5mm 6mm; }
 }
@@ -638,6 +641,7 @@ function render(){
     var parts=buildTimeParts(e);
     if(parts.length){
       var timeLbl=document.createElement('div');
+      timeLbl.className='time-label-print';
       timeLbl.style.cssText='writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;font-weight:600;color:var(--tx2);line-height:1.5;margin-bottom:4px;white-space:nowrap';
       timeLbl.innerHTML=vText(parts.join('\u3000'));
       topCol.appendChild(timeLbl);
